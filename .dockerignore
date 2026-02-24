@@ -1,0 +1,19 @@
+# Version control
+.git
+.gitignore
+
+# Build output (rebuilt inside Docker)
+_fresh/
+
+# Local data (mounted as volumes in production)
+task-light.db
+data/
+
+# Dev artifacts
+node_modules/.cache
+.playwright-mcp/
+
+# Docs / meta
+TODO.md
+*.md
+!README.md

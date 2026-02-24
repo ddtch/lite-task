@@ -1,0 +1,26 @@
+{
+  "name": "lite-task-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for lite-task — connect Claude, Cursor, and other AI tools to your local task manager",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/lite-task"
+  },
+  "homepage": "https://github.com/your-org/lite-task#readme",
+  "keywords": ["mcp", "task-manager", "claude", "cursor", "ai"],
+  "bin": {
+    "lite-task-mcp": "run.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "run.js",
+    "install.js",
+    "bin/.gitkeep"
+  ]
+}

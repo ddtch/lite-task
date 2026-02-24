@@ -1,0 +1,25 @@
+services:
+  lite-task:
+    build: .
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      # Persist the SQLite database
+      - ./task-light.db:/app/task-light.db
+      # Persist uploaded files (images, voice memos)
+      - ./data/uploads:/app/data/uploads
+    environment:
+      - PORT=8000
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "deno",
+          "eval",
+          "const r = await fetch('http://localhost:8000/api/projects'); if (!r.ok) Deno.exit(1);",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
