@@ -336,6 +336,68 @@ VERSION=0.2.0 INSTALL_DIR=~/.local/bin sh <(curl -fsSL .../install.sh)
 
 ---
 
+## Telegram Bot
+
+lite-task ships a Telegram bot that accepts natural-language messages and uses an AI agent (Claude or GPT-4o-mini) to read and manage your tasks.
+
+**Examples:**
+- "List my projects"
+- "Create a task called Fix login bug in project Personal"
+- "What tasks are in progress?"
+- "Mark task 12 as done"
+
+### Setup
+
+#### 1. Create a bot on Telegram
+
+Talk to [@BotFather](https://t.me/BotFather), send `/newbot`, follow the prompts, and copy the bot token.
+
+#### 2. Configure environment variables
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and fill in:
+
+```
+LITE_TASK_URL=http://localhost:8000   # or wherever lite-task runs
+TELEGRAM_BOT_TOKEN=<token from BotFather>
+ANTHROPIC_API_KEY=<your key>          # takes priority over OpenAI
+# OPENAI_API_KEY=<your key>           # fallback if no Anthropic key
+```
+
+#### 3. Run the bot
+
+```bash
+# Terminal 1 — web app
+deno task dev
+
+# Terminal 2 — Telegram bot
+deno task bot
+```
+
+The bot connects to `LITE_TASK_URL` via the REST API. No extra database access is needed.
+
+#### 4. Docker (run both together)
+
+```bash
+docker compose up -d
+```
+
+The `bot` service starts automatically after the `lite-task` service passes its health check. It reads credentials from `.env` (mounted read-only).
+
+### AI provider
+
+| Env var | Provider | Model |
+|---------|----------|-------|
+| `ANTHROPIC_API_KEY` | Anthropic Claude | claude-sonnet-4-6 |
+| `OPENAI_API_KEY` | OpenAI | gpt-4o-mini |
+
+Set one or both. Anthropic takes priority if both are present. The bot errors at startup if neither is set.
+
+---
+
 ## REST API
 
 The web app exposes a JSON API used by the MCP HTTP client and available for any integration.

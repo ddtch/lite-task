@@ -1906,10 +1906,13 @@
     "dependencies": [
       "jsr:@fresh/core@^2.2.0",
       "jsr:@fresh/plugin-vite@^1.0.8",
+      "npm:@anthropic-ai/sdk@0.52",
       "npm:@modelcontextprotocol/sdk@^1.27.0",
       "npm:@preact/signals@^2.5.0",
       "npm:@tailwindcss/vite@^4.1.12",
       "npm:@types/node@^25.3.0",
+      "npm:grammy@^1.36.1",
+      "npm:openai@^4.96.0",
       "npm:preact@^10.27.2",
       "npm:tailwindcss@^4.1.10",
       "npm:vite@^7.1.3"

@@ -23,3 +23,15 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+
+  bot:
+    build: .
+    command: ["deno", "run", "-A", "--env-file=/app/.env", "bot/main.ts"]
+    volumes:
+      - ./.env:/app/.env:ro
+    environment:
+      - LITE_TASK_URL=http://lite-task:8000
+    depends_on:
+      lite-task:
+        condition: service_healthy
+    restart: unless-stopped
