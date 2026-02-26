@@ -62,68 +62,71 @@ export interface Attachment {
 // Projects
 // ---------------------------------------------------------------------------
 
-export function listProjects(): Project[] {
-  const db = getDb();
-  return (db.prepare(`
+export async function listProjects(): Promise<Project[]> {
+  const db = await getDb();
+  return (await db.all<Project>(`
     SELECT p.*,
            COUNT(t.id) AS task_count
     FROM projects p
     LEFT JOIN tasks t ON t.project_id = p.id
     GROUP BY p.id
     ORDER BY p.updated_at DESC
-  `).all() as unknown as Project[]).map(decodeProject);
+  `)).map(decodeProject);
 }
 
-export function getProject(id: number): Project | undefined {
-  const db = getDb();
-  const row = db.prepare(
-    "SELECT * FROM projects WHERE id = ?",
-  ).get(id) as unknown as Project | undefined;
+export async function getProject(id: number): Promise<Project | undefined> {
+  const db = await getDb();
+  const row = await db.get<Project>("SELECT * FROM projects WHERE id = ?", [id]);
   return row ? decodeProject(row) : undefined;
 }
 
-export function createProject(name: string, description: string): number {
-  const db = getDb();
-  const result = db.prepare(
+export async function createProject(name: string, description: string): Promise<number> {
+  const db = await getDb();
+  return await db.run(
     "INSERT INTO projects (name, description) VALUES (?, ?)",
-  ).run(name, description);
-  return Number(result.lastInsertRowid);
+    [name, description],
+  );
 }
 
-export function updateProject(id: number, name: string, description: string): void {
-  const db = getDb();
-  db.prepare(
+export async function updateProject(
+  id: number,
+  name: string,
+  description: string,
+): Promise<void> {
+  const db = await getDb();
+  await db.run(
     "UPDATE projects SET name = ?, description = ?, updated_at = datetime('now') WHERE id = ?",
-  ).run(name, description, id);
+    [name, description, id],
+  );
 }
 
-export function deleteProject(id: number): void {
-  const db = getDb();
-  db.prepare("DELETE FROM projects WHERE id = ?").run(id);
+export async function deleteProject(id: number): Promise<void> {
+  const db = await getDb();
+  await db.run("DELETE FROM projects WHERE id = ?", [id]);
 }
 
 // ---------------------------------------------------------------------------
 // Tasks
 // ---------------------------------------------------------------------------
 
-export function listTasks(projectId: number): Task[] {
-  const db = getDb();
-  return (db.prepare(`
+export async function listTasks(projectId: number): Promise<Task[]> {
+  const db = await getDb();
+  return (await db.all<Task>(`
     SELECT * FROM tasks
     WHERE project_id = ?
     ORDER BY
       CASE status WHEN 'todo' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END,
       CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
       updated_at DESC
-  `).all(projectId) as unknown as Task[]).map(decodeTask);
+  `, [projectId])).map(decodeTask);
 }
 
-export function listAllTasks(opts?: {
+export async function listAllTasks(opts?: {
   status?: string;
   priority?: string;
   projectId?: number;
-}): Task[] {
-  const db = getDb();
+}): Promise<Task[]> {
+  const db = await getDb();
   const conditions: string[] = [];
   const params: (string | number)[] = [];
 
@@ -141,37 +144,38 @@ export function listAllTasks(opts?: {
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-  return (db.prepare(`SELECT * FROM tasks ${where} ORDER BY updated_at DESC`).all(
-    ...params,
-  ) as unknown as Task[]).map(decodeTask);
+  return (await db.all<Task>(
+    `SELECT * FROM tasks ${where} ORDER BY updated_at DESC`,
+    params,
+  )).map(decodeTask);
 }
 
-export function getTask(id: number): Task | undefined {
-  const db = getDb();
-  const row = db.prepare("SELECT * FROM tasks WHERE id = ?").get(id) as unknown as Task | undefined;
+export async function getTask(id: number): Promise<Task | undefined> {
+  const db = await getDb();
+  const row = await db.get<Task>("SELECT * FROM tasks WHERE id = ?", [id]);
   return row ? decodeTask(row) : undefined;
 }
 
-export function createTask(
+export async function createTask(
   projectId: number,
   title: string,
   description: string,
   priority: Task["priority"],
   status: Task["status"],
-): number {
-  const db = getDb();
-  const result = db.prepare(
+): Promise<number> {
+  const db = await getDb();
+  return await db.run(
     `INSERT INTO tasks (project_id, title, description, priority, status)
      VALUES (?, ?, ?, ?, ?)`,
-  ).run(projectId, title, description, priority, status);
-  return Number(result.lastInsertRowid);
+    [projectId, title, description, priority, status],
+  );
 }
 
-export function updateTask(
+export async function updateTask(
   id: number,
   fields: Partial<Pick<Task, "title" | "description" | "priority" | "status">>,
-): void {
-  const db = getDb();
+): Promise<void> {
+  const db = await getDb();
   const sets: string[] = [];
   const values: (string | number)[] = [];
 
@@ -187,42 +191,43 @@ export function updateTask(
   sets.push("updated_at = datetime('now')");
   values.push(id);
 
-  db.prepare(`UPDATE tasks SET ${sets.join(", ")} WHERE id = ?`).run(...values);
+  await db.run(`UPDATE tasks SET ${sets.join(", ")} WHERE id = ?`, values);
 }
 
-export function deleteTask(id: number): void {
-  const db = getDb();
-  db.prepare("DELETE FROM tasks WHERE id = ?").run(id);
+export async function deleteTask(id: number): Promise<void> {
+  const db = await getDb();
+  await db.run("DELETE FROM tasks WHERE id = ?", [id]);
 }
 
 // ---------------------------------------------------------------------------
 // Attachments
 // ---------------------------------------------------------------------------
 
-export function listAttachments(taskId: number): Attachment[] {
-  const db = getDb();
-  return db.prepare(
+export async function listAttachments(taskId: number): Promise<Attachment[]> {
+  const db = await getDb();
+  return await db.all<Attachment>(
     "SELECT * FROM attachments WHERE task_id = ? ORDER BY created_at DESC",
-  ).all(taskId) as unknown as Attachment[];
+    [taskId],
+  );
 }
 
-export function createAttachment(
+export async function createAttachment(
   taskId: number,
   type: Attachment["type"],
   filename: string,
   originalName: string,
   mimeType: string,
   size: number,
-): number {
-  const db = getDb();
-  const result = db.prepare(
+): Promise<number> {
+  const db = await getDb();
+  return await db.run(
     `INSERT INTO attachments (task_id, type, filename, original_name, mime_type, size)
      VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run(taskId, type, filename, originalName, mimeType, size);
-  return Number(result.lastInsertRowid);
+    [taskId, type, filename, originalName, mimeType, size],
+  );
 }
 
-export function deleteAttachment(id: number): void {
-  const db = getDb();
-  db.prepare("DELETE FROM attachments WHERE id = ?").run(id);
+export async function deleteAttachment(id: number): Promise<void> {
+  const db = await getDb();
+  await db.run("DELETE FROM attachments WHERE id = ?", [id]);
 }

@@ -36,7 +36,9 @@
     "@modelcontextprotocol/sdk": "npm:@modelcontextprotocol/sdk@^1.27.0",
     "grammy": "npm:grammy@^1.36.1",
     "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@^0.52.0",
-    "openai": "npm:openai@^4.96.0"
+    "openai": "npm:openai@^4.96.0",
+    "@libsql/client": "npm:@libsql/client@^0.14.0",
+    "@libsql/client/web": "npm:@libsql/client@^0.14.0/web"
   },
   "compilerOptions": {
     "lib": [

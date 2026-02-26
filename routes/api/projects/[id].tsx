@@ -7,17 +7,17 @@ import {
 } from "../../../db/queries.ts";
 
 export const handler = define.handlers({
-  GET(ctx) {
+  async GET(ctx) {
     const id = Number(ctx.params.id);
-    const project = getProject(id);
+    const project = await getProject(id);
     if (!project) return Response.json({ error: "Not found" }, { status: 404 });
-    const tasks = listTasks(id);
+    const tasks = await listTasks(id);
     return Response.json({ ...project, tasks });
   },
 
   async PUT(ctx) {
     const id = Number(ctx.params.id);
-    const project = getProject(id);
+    const project = await getProject(id);
     if (!project) return Response.json({ error: "Not found" }, { status: 404 });
 
     let body: { name?: string; description?: string };
@@ -29,15 +29,15 @@ export const handler = define.handlers({
 
     const name = body.name?.trim() ?? project.name;
     const description = body.description?.trim() ?? project.description;
-    updateProject(id, name, description);
+    await updateProject(id, name, description);
     return Response.json({ id, name, description });
   },
 
-  DELETE(ctx) {
+  async DELETE(ctx) {
     const id = Number(ctx.params.id);
-    const project = getProject(id);
+    const project = await getProject(id);
     if (!project) return Response.json({ error: "Not found" }, { status: 404 });
-    deleteProject(id);
+    await deleteProject(id);
     return Response.json({ deleted: true });
   },
 });

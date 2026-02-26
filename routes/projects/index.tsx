@@ -5,7 +5,7 @@ import ProjectCreateModal from "../../islands/ProjectCreateModal.tsx";
 
 export const handler = define.handlers({
   async GET(ctx) {
-    const projects = listProjects();
+    const projects = await listProjects();
     return page({ projects });
   },
 
@@ -18,7 +18,7 @@ export const handler = define.handlers({
       return new Response(null, { status: 400 });
     }
 
-    const id = createProject(name, description);
+    const id = await createProject(name, description);
     return new Response(null, {
       status: 303,
       headers: { Location: `/projects/${id}` },

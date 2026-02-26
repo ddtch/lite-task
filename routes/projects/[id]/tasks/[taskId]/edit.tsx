@@ -10,7 +10,7 @@ export const handler = define.handlers({
   async GET(ctx) {
     const projectId = Number(ctx.params.id);
     const taskId = Number(ctx.params.taskId);
-    const [project, task] = [getProject(projectId), getTask(taskId)];
+    const [project, task] = await Promise.all([getProject(projectId), getTask(taskId)]);
     if (!project || !task || task.project_id !== projectId) {
       return new Response("Not found", { status: 404 });
     }
@@ -20,7 +20,7 @@ export const handler = define.handlers({
   async POST(ctx) {
     const projectId = Number(ctx.params.id);
     const taskId = Number(ctx.params.taskId);
-    const [project, task] = [getProject(projectId), getTask(taskId)];
+    const [project, task] = await Promise.all([getProject(projectId), getTask(taskId)]);
     if (!project || !task || task.project_id !== projectId) {
       return new Response("Not found", { status: 404 });
     }
@@ -37,7 +37,7 @@ export const handler = define.handlers({
       });
     }
 
-    updateTask(taskId, {
+    await updateTask(taskId, {
       title,
       description,
       priority: priority as "low" | "medium" | "high",

@@ -7,17 +7,17 @@ import {
 } from "../../../db/queries.ts";
 
 export const handler = define.handlers({
-  GET(ctx) {
+  async GET(ctx) {
     const id = Number(ctx.params.id);
-    const task = getTask(id);
+    const task = await getTask(id);
     if (!task) return Response.json({ error: "Not found" }, { status: 404 });
-    const attachments = listAttachments(id);
+    const attachments = await listAttachments(id);
     return Response.json({ ...task, attachments });
   },
 
   async PUT(ctx) {
     const id = Number(ctx.params.id);
-    const task = getTask(id);
+    const task = await getTask(id);
     if (!task) return Response.json({ error: "Not found" }, { status: 404 });
 
     let body: {
@@ -35,7 +35,7 @@ export const handler = define.handlers({
     const validPriorities = ["low", "medium", "high"];
     const validStatuses = ["todo", "in_progress", "done"];
 
-    updateTask(id, {
+    await updateTask(id, {
       ...(body.title !== undefined ? { title: body.title.trim() } : {}),
       ...(body.description !== undefined ? { description: body.description.trim() } : {}),
       ...(body.priority && validPriorities.includes(body.priority)
@@ -46,14 +46,14 @@ export const handler = define.handlers({
         : {}),
     });
 
-    return Response.json({ ...getTask(id) });
+    return Response.json({ ...await getTask(id) });
   },
 
-  DELETE(ctx) {
+  async DELETE(ctx) {
     const id = Number(ctx.params.id);
-    const task = getTask(id);
+    const task = await getTask(id);
     if (!task) return Response.json({ error: "Not found" }, { status: 404 });
-    deleteTask(id);
+    await deleteTask(id);
     return Response.json({ deleted: true });
   },
 });

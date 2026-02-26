@@ -15,7 +15,7 @@ async function ensureUploadsDir() {
 export const handler = define.handlers({
   async POST(ctx) {
     const taskId = Number(ctx.params.id);
-    const task = getTask(taskId);
+    const task = await getTask(taskId);
     if (!task) return Response.json({ error: "Task not found" }, { status: 404 });
 
     let formData: FormData;
@@ -62,7 +62,7 @@ export const handler = define.handlers({
     const bytes = await file.arrayBuffer();
     await Deno.writeFile(dest, new Uint8Array(bytes));
 
-    const attachmentId = createAttachment(
+    const attachmentId = await createAttachment(
       taskId,
       attachType,
       filename,

@@ -2,13 +2,13 @@ import { define } from "../../../utils.ts";
 import { createTask, listAllTasks } from "../../../db/queries.ts";
 
 export const handler = define.handlers({
-  GET(ctx) {
+  async GET(ctx) {
     const url = ctx.url;
     const projectId = url.searchParams.get("project_id");
     const status = url.searchParams.get("status") ?? undefined;
     const priority = url.searchParams.get("priority") ?? undefined;
 
-    const tasks = listAllTasks({
+    const tasks = await listAllTasks({
       projectId: projectId ? Number(projectId) : undefined,
       status,
       priority,
@@ -47,7 +47,7 @@ export const handler = define.handlers({
       ? (body.status as "todo" | "in_progress" | "done")
       : "todo";
 
-    const id = createTask(
+    const id = await createTask(
       body.project_id,
       title,
       body.description?.trim() ?? "",

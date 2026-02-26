@@ -2,8 +2,8 @@ import { define } from "../../../utils.ts";
 import { createProject, listProjects } from "../../../db/queries.ts";
 
 export const handler = define.handlers({
-  GET() {
-    const projects = listProjects();
+  async GET() {
+    const projects = await listProjects();
     return Response.json(projects);
   },
 
@@ -20,7 +20,7 @@ export const handler = define.handlers({
       return Response.json({ error: "name is required" }, { status: 422 });
     }
     const description = body.description?.trim() ?? "";
-    const id = createProject(name, description);
+    const id = await createProject(name, description);
     return Response.json({ id, name, description }, { status: 201 });
   },
 });

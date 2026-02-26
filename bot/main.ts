@@ -92,11 +92,11 @@ bot.on("message:text", async (ctx) => {
 
   const userText = stripMention(rawText, ctx.me.username);
 
-  // Private chat: just the user's text — agent can call get_chat_messages/list_chats if needed.
-  // Group: append recent history so agent has immediate context.
-  const agentInput = chatType === "private"
-    ? userText
-    : `[Group: ${chatName}]\n${userText}${recentMessagesContext(chatId)}`;
+  // Always append recent history so the agent has context for multi-turn flows
+  // (e.g. "attach my next voice note to the task" → voice message arrives next).
+  const agentInput = (chatType === "group" || chatType === "supergroup")
+    ? `[Group: ${chatName}]\n${userText}${recentMessagesContext(chatId)}`
+    : `${userText}${recentMessagesContext(chatId)}`;
 
   try {
     const reply = await runAgent(agentInput);
@@ -162,12 +162,17 @@ async function handleMedia(
   const caption = ("caption" in ctx.message! && ctx.message.caption) ? ctx.message.caption : "";
   const userText = caption || fallbackText;
 
+  // Append recent chat history so the agent can honour prior instructions
+  // (e.g. "attach the next file to task X" sent in a previous message).
+  const chatId = ctx.chat!.id;
+  const agentInput = `${userText}${recentMessagesContext(chatId)}`;
+
   // Make file available to the upload_attachment tool
   setSessionMedia(media);
   try {
     // Pass image as vision only if the AI provider supports that MIME type
     const vision = isVisionMime(media.mimeType) ? media : undefined;
-    const reply = await runAgent(userText, vision);
+    const reply = await runAgent(agentInput, vision);
     await ctx.reply(reply);
   } catch (err) {
     console.error("Agent error:", err);
@@ -226,9 +231,13 @@ bot.on("message:voice", async (ctx) => {
       `User sent a voice message (${voice.duration}s). No transcription available (set OPENAI_API_KEY to enable). You can still attach the audio to a task with upload_attachment.`;
   }
 
+  // Append recent chat history so the agent can honour prior instructions
+  // (e.g. "attach my next voice note to task X" sent in a previous message).
+  const agentInput = `${userText}${recentMessagesContext(ctx.chat.id)}`;
+
   setSessionMedia(media);
   try {
-    const reply = await runAgent(userText);
+    const reply = await runAgent(agentInput);
     await ctx.reply(reply);
   } catch (err) {
     console.error("Agent error:", err);

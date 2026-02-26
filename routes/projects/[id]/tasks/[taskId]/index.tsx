@@ -16,11 +16,11 @@ export const handler = define.handlers({
   async GET(ctx) {
     const projectId = Number(ctx.params.id);
     const taskId = Number(ctx.params.taskId);
-    const [project, task] = [getProject(projectId), getTask(taskId)];
+    const [project, task] = await Promise.all([getProject(projectId), getTask(taskId)]);
     if (!project || !task || task.project_id !== projectId) {
       return new Response("Not found", { status: 404 });
     }
-    const attachments = listAttachments(taskId);
+    const attachments = await listAttachments(taskId);
     return page({ project, task, attachments });
   },
 
@@ -31,7 +31,7 @@ export const handler = define.handlers({
     const action = form.get("_action") as string | null;
 
     if (action === "delete") {
-      deleteTask(taskId);
+      await deleteTask(taskId);
       return new Response(null, {
         status: 303,
         headers: { Location: `/projects/${projectId}` },
@@ -40,7 +40,7 @@ export const handler = define.handlers({
 
     if (action === "status") {
       const status = form.get("status") as string;
-      updateTask(taskId, { status: status as "todo" | "in_progress" | "done" });
+      await updateTask(taskId, { status: status as "todo" | "in_progress" | "done" });
       return new Response(null, {
         status: 303,
         headers: {

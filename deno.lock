@@ -2095,6 +2095,7 @@
       "jsr:@fresh/core@^2.2.0",
       "jsr:@fresh/plugin-vite@^1.0.8",
       "npm:@anthropic-ai/sdk@0.52",
+      "npm:@libsql/client@0.14",
       "npm:@modelcontextprotocol/sdk@^1.27.0",
       "npm:@preact/signals@^2.5.0",
       "npm:@tailwindcss/vite@^4.1.12",

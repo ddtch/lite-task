@@ -169,7 +169,7 @@ const TOOL_SPECS: ToolSpec[] = [
   {
     name: "upload_attachment",
     description:
-      "Upload the photo, voice message, or file that the user just sent to a specific task as an attachment. Only call this when the user has sent a file in the current message.",
+      "Upload the photo, voice message, or file that the user just sent to a specific task as an attachment. Call this when the user has sent a file AND either explicitly asks to attach it or previously asked to attach the next file they send.",
     properties: {
       task_id: { type: "number", description: "Task ID to attach the file to (required)" },
     },

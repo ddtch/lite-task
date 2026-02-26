@@ -3,13 +3,15 @@ services:
     build: .
     ports:
       - "${PORT:-8011}:8011"
-    volumes:
-      # Persist the SQLite database
-      - ./task-light.db:/app/task-light.db
-      # Persist uploaded files (images, voice memos)
-      - ./data/uploads:/app/data/uploads
+    env_file:
+      - .env
     environment:
       - PORT=8011
+    volumes:
+      # Single data dir — holds SQLite DB files and uploaded media.
+      # When TURSO_DB_URL + TURSO_API_KEY are set in .env, the DB files
+      # are not used (Turso is remote), but uploads still live here.
+      - ./data:/app/data
     restart: unless-stopped
     healthcheck:
       test:
@@ -26,11 +28,13 @@ services:
 
   bot:
     build: .
-    command: ["deno", "run", "-A", "--env-file=/app/.env", "bot/main.ts"]
-    volumes:
-      - ./.env:/app/.env:ro
+    command: ["deno", "run", "-A", "bot/main.ts"]
+    env_file:
+      - .env
     environment:
       - LITE_TASK_URL=http://lite-task:8011
+    volumes:
+      - ./data:/app/data
     depends_on:
       lite-task:
         condition: service_healthy

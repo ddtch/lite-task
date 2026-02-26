@@ -10,8 +10,9 @@
  */
 
 import { DatabaseSync } from "node:sqlite";
+import { resolve } from "node:path";
 
-const DB_PATH = "bot-messages.db";
+const DB_PATH = resolve(Deno.cwd(), "data", "bot-messages.db");
 
 let _db: DatabaseSync | null = null;
 

@@ -5,7 +5,7 @@ import { createTask, getProject } from "../../../../db/queries.ts";
 export const handler = define.handlers({
   async GET(ctx) {
     const projectId = Number(ctx.params.id);
-    const project = getProject(projectId);
+    const project = await getProject(projectId);
     if (!project) {
       return new Response("Project not found", { status: 404 });
     }
@@ -14,7 +14,7 @@ export const handler = define.handlers({
 
   async POST(ctx) {
     const projectId = Number(ctx.params.id);
-    const project = getProject(projectId);
+    const project = await getProject(projectId);
     if (!project) {
       return new Response("Project not found", { status: 404 });
     }
@@ -29,7 +29,7 @@ export const handler = define.handlers({
       return page({ project, error: "Title is required" }, { status: 422 });
     }
 
-    const taskId = createTask(
+    const taskId = await createTask(
       projectId,
       title,
       description,

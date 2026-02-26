@@ -7,11 +7,11 @@ import KanbanBoard from "../../../islands/KanbanBoard.tsx";
 export const handler = define.handlers({
   async GET(ctx) {
     const id = Number(ctx.params.id);
-    const project = getProject(id);
+    const project = await getProject(id);
     if (!project) {
       return new Response("Project not found", { status: 404 });
     }
-    const tasks = listTasks(id);
+    const tasks = await listTasks(id);
     const view = ctx.url.searchParams.get("view") === "board" ? "board" : "list";
     return page({ project, tasks, view });
   },
@@ -22,7 +22,7 @@ export const handler = define.handlers({
     const id = Number(ctx.params.id);
 
     if (action === "delete") {
-      deleteProject(id);
+      await deleteProject(id);
       return new Response(null, {
         status: 303,
         headers: { Location: "/projects" },
@@ -231,4 +231,3 @@ function TaskRow({ task, projectId }: { task: Task; projectId: number }) {
     </a>
   );
 }
-

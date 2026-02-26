@@ -12,7 +12,7 @@ app.use(async (ctx) => {
   // Skip for static assets and API routes to avoid unnecessary DB hits
   const { pathname } = ctx.url;
   if (!pathname.startsWith("/api/") && !pathname.startsWith("/_fresh/")) {
-    ctx.state.projects = listProjects();
+    ctx.state.projects = await listProjects();
   } else {
     ctx.state.projects = [];
   }

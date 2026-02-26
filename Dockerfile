@@ -33,7 +33,7 @@ WORKDIR /app
 
 ENV DENO_NO_UPDATE_CHECK=1
 ENV DENO_NO_PROMPT=1
-ENV PORT=8000
+ENV PORT=8011
 
 # Copy built output
 COPY --from=builder /app/_fresh ./_fresh
@@ -41,14 +41,15 @@ COPY --from=builder /app/static ./static
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/deno.json ./deno.json
 COPY --from=builder /app/deno.lock ./deno.lock
+COPY --from=builder /app/bot ./bot
 
-# Persistent data dirs (override with Docker volumes)
+# Persistent data dir (DB files + uploads) — overridden by Docker volume in production
 RUN mkdir -p data/uploads
 
-EXPOSE 8000
+EXPOSE 8011
 
 # Health check — pings the projects API
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD deno eval "const r = await fetch('http://localhost:8011/api/projects'); if (!r.ok) Deno.exit(1);"
 
-CMD ["deno", "serve", "-A", "--port=8000", "--host=0.0.0.0", "_fresh/server.js"]
+CMD ["deno", "serve", "-A", "--port=8011", "--host=0.0.0.0", "_fresh/server.js"]

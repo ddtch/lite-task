@@ -223,14 +223,14 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   try {
     switch (name) {
       case "list_projects": {
-        const projects = listProjects();
+        const projects = await listProjects();
         return { content: [{ type: "text", text: JSON.stringify(projects, null, 2) }] };
       }
 
       case "create_project": {
         const pName = String(a.name ?? "").trim();
         if (!pName) throw new Error("name is required");
-        const id = createProject(pName, String(a.description ?? "").trim());
+        const id = await createProject(pName, String(a.description ?? "").trim());
         return {
           content: [{
             type: "text",
@@ -241,9 +241,9 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
       case "get_project": {
         const id = Number(a.id);
-        const project = getProject(id);
+        const project = await getProject(id);
         if (!project) throw new Error(`Project ${id} not found`);
-        const tasks = listAllTasks({ projectId: id });
+        const tasks = await listAllTasks({ projectId: id });
         return {
           content: [{
             type: "text",
@@ -254,13 +254,13 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
       case "delete_project": {
         const id = Number(a.id);
-        if (!getProject(id)) throw new Error(`Project ${id} not found`);
-        deleteProject(id);
+        if (!await getProject(id)) throw new Error(`Project ${id} not found`);
+        await deleteProject(id);
         return { content: [{ type: "text", text: `Project ${id} deleted.` }] };
       }
 
       case "list_tasks": {
-        const tasks = listAllTasks({
+        const tasks = await listAllTasks({
           projectId: a.project_id ? Number(a.project_id) : undefined,
           status: a.status ? String(a.status) : undefined,
           priority: a.priority ? String(a.priority) : undefined,
@@ -283,7 +283,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
           ? (String(a.status) as "todo" | "in_progress" | "done")
           : "todo";
 
-        const id = createTask(
+        const id = await createTask(
           projectId,
           title,
           String(a.description ?? "").trim(),
@@ -300,9 +300,9 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
       case "get_task": {
         const id = Number(a.id);
-        const task = getTask(id);
+        const task = await getTask(id);
         if (!task) throw new Error(`Task ${id} not found`);
-        const attachments = listAttachments(id);
+        const attachments = await listAttachments(id);
         return {
           content: [{
             type: "text",
@@ -313,10 +313,10 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
       case "update_task": {
         const id = Number(a.id);
-        if (!getTask(id)) throw new Error(`Task ${id} not found`);
+        if (!await getTask(id)) throw new Error(`Task ${id} not found`);
         const validPriorities = ["low", "medium", "high"];
         const validStatuses = ["todo", "in_progress", "done"];
-        updateTask(id, {
+        await updateTask(id, {
           ...(a.title !== undefined ? { title: String(a.title).trim() } : {}),
           ...(a.description !== undefined
             ? { description: String(a.description).trim() }
@@ -331,15 +331,15 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         return {
           content: [{
             type: "text",
-            text: JSON.stringify(getTask(id), null, 2),
+            text: JSON.stringify(await getTask(id), null, 2),
           }],
         };
       }
 
       case "delete_task": {
         const id = Number(a.id);
-        if (!getTask(id)) throw new Error(`Task ${id} not found`);
-        deleteTask(id);
+        if (!await getTask(id)) throw new Error(`Task ${id} not found`);
+        await deleteTask(id);
         return { content: [{ type: "text", text: `Task ${id} deleted.` }] };
       }
 

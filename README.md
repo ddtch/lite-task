@@ -1,6 +1,6 @@
 # lite-task
 
-A local-first task manager with **projects**, **tasks**, **attachments** (images, audio, video, voice memos), and a **Telegram AI bot** — built with Deno, Fresh 2, and SQLite.
+A local-first task manager with **projects**, **tasks**, **attachments** (images, audio, video, voice memos), and a **Telegram AI bot** — built with Deno, Fresh 2, and SQLite (or Turso).
 
 Designed to also act as an **MCP server** so Claude (or Claude Desktop) can read and manage your tasks directly from conversations.
 
@@ -14,7 +14,7 @@ Designed to also act as an **MCP server** so Claude (or Claude Desktop) can read
 - **Attachments** — drag & drop images, upload audio files (MP3, M4A), upload video files (MP4), or record voice memos per task
 - **Image lightbox** — click any image attachment to view it full-screen with prev/next navigation
 - **Clickable links** — URLs in task descriptions are automatically rendered as links
-- **SQLite** — everything stored locally, zero cloud dependencies
+- **SQLite or Turso** — local SQLite by default; switch to Turso cloud database via env vars
 - **REST API** — clean JSON API for programmatic access
 - **MCP server** — two modes: direct DB (local) or HTTP client (remote/Docker)
 - **Telegram bot** — AI-powered bot (Claude or GPT-4o-mini) that manages tasks via natural language, supports voice transcription and media attachments
@@ -33,9 +33,36 @@ deno task dev
 # → http://localhost:8011
 ```
 
-The SQLite database (`task-light.db`) and uploads (`data/uploads/`) are created automatically on first run.
+The SQLite database (`data/task-light.db`) and uploads (`data/uploads/`) are created automatically on first run inside the `data/` directory.
 
 > **Arc browser users:** the dev server uses a custom Vite protocol scheme that Arc blocks. Use `deno task preview` (production build) for full functionality, or open in Chrome/Firefox.
+
+---
+
+## Database
+
+### Local SQLite (default)
+
+No configuration needed. The database is created at `data/task-light.db` relative to the working directory on first run.
+
+### Turso (cloud SQLite)
+
+[Turso](https://turso.tech) is a libSQL-based cloud database. When `TURSO_DB_URL` and `TURSO_API_KEY` are both set, the app connects to Turso instead of local SQLite — no other changes needed.
+
+```env
+TURSO_DB_URL=libsql://your-database.turso.io
+TURSO_API_KEY=your-auth-token
+```
+
+Get these from the [Turso dashboard](https://app.turso.tech) or the `turso` CLI:
+
+```bash
+turso db create lite-task
+turso db show lite-task --url
+turso db tokens create lite-task
+```
+
+> When using Turso in Docker, the `data/task-light.db` file is never written. Uploaded files (images, audio, video) still need the `data/uploads/` volume — those are stored on disk regardless of DB mode.
 
 ---
 
@@ -69,14 +96,25 @@ deno serve -A --port=3000 --host=0.0.0.0 _fresh/server.js
 git clone https://github.com/your-org/lite-task
 cd lite-task/task-light
 
-# Copy and fill in env vars (required for Telegram bot, optional otherwise)
+# Copy and fill in env vars
 cp .env.example .env
 
 docker compose up -d
 # → http://localhost:8011
 ```
 
-Data persists in `./task-light.db` and `./data/uploads/` on the host.
+Both services (`lite-task` and `bot`) read from `.env` automatically via Docker's `env_file` directive. If `TURSO_DB_URL` and `TURSO_API_KEY` are present the app uses Turso; otherwise it uses local SQLite.
+
+**Persistent data** is stored under `./data/` on the host:
+
+```
+./data/
+  task-light.db       ← SQLite DB (local mode only; unused when Turso is active)
+  bot-messages.db     ← Telegram message history (always local SQLite)
+  uploads/            ← uploaded images, audio, and video files
+```
+
+Docker creates the `data/` directory on first run. SQLite files are created automatically — nothing to pre-create.
 
 To change the port:
 
@@ -94,8 +132,8 @@ docker build -t lite-task .
 docker run -d \
   --name lite-task \
   -p 8011:8011 \
-  -v "$(pwd)/task-light.db:/app/task-light.db" \
-  -v "$(pwd)/data/uploads:/app/data/uploads" \
+  -v "$(pwd)/data:/app/data" \
+  --env-file .env \
   --restart unless-stopped \
   lite-task
 ```
@@ -112,13 +150,37 @@ docker compose up -d --build
 
 ## MCP Server — integrate with AI tools
 
-lite-task ships **two MCP server modes**. Pick one based on your setup.
+lite-task ships **three MCP server modes**. Pick one based on your setup.
 
-### Mode 1: HTTP client (recommended)
+### Mode 1: Built-in HTTP endpoint (easiest — recommended for Cursor)
 
-Connects to any running lite-task instance over HTTP. Works whether the app runs locally, in Docker, or on a remote server. Can be compiled to a **standalone binary** — no Deno required on the machine running the AI tool.
+The app exposes an MCP endpoint at `/mcp` using the [Streamable HTTP transport](https://spec.modelcontextprotocol.io/specification/basic/transports/#streamable-http). No subprocess, no env vars — just point your tool at the URL.
 
-#### Step 1 — compile the binary (once)
+Works whenever the app is running (locally or in Docker).
+
+#### Configure Cursor
+
+`~/.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "lite-task": {
+      "url": "http://localhost:8011/mcp"
+    }
+  }
+}
+```
+
+That's it. Reload MCP servers in Cursor (`Cmd+Shift+P` → "MCP: Reload Servers").
+
+---
+
+### Mode 2: HTTP client (binary / Deno)
+
+Connects to any running lite-task instance over HTTP via stdio. Works whether the app runs locally, in Docker, or on a remote server. Can be compiled to a **standalone binary** — no Deno required on the machine running the AI tool.
+
+#### Step 1 — compile the binary (once) — optional
 
 ```bash
 cd task-light
@@ -178,29 +240,15 @@ After editing, restart Claude Desktop. You should see the lite-task tools listed
 
 ### Configure Cursor
 
-Add to `~/.cursor/mcp.json` (create if it doesn't exist):
+> **Recommended:** use Mode 1 (built-in HTTP endpoint) — just `"url": "http://localhost:8011/mcp"` with no subprocess.
+
+Alternatively, with the compiled binary or Deno:
 
 ```json
 {
   "mcpServers": {
     "lite-task": {
       "command": "/Users/you/.local/bin/lite-task-mcp",
-      "env": {
-        "LITE_TASK_URL": "http://localhost:8011"
-      }
-    }
-  }
-}
-```
-
-Or use Deno:
-
-```json
-{
-  "mcpServers": {
-    "lite-task": {
-      "command": "deno",
-      "args": ["run", "-A", "/path/to/task-light/mcp/http-client.ts"],
       "env": {
         "LITE_TASK_URL": "http://localhost:8011"
       }
@@ -234,7 +282,7 @@ Restart Claude Code after editing. Run `/mcp` in a session to confirm the server
 
 ---
 
-### Mode 2: Direct DB access (local only)
+### Mode 3: Direct DB access (local only)
 
 When lite-task and the AI tool run on the same machine, this mode skips HTTP entirely and reads SQLite directly — no web server needed.
 
@@ -250,7 +298,7 @@ When lite-task and the AI tool run on the same machine, this mode skips HTTP ent
 }
 ```
 
-> The `cwd` must point to `task-light/` so the server finds `task-light.db`.
+> The `cwd` must point to `task-light/` so the server resolves `data/task-light.db` correctly. This mode does not support Turso — it always reads the local SQLite file.
 
 ---
 
@@ -363,7 +411,7 @@ deno task bot
 docker compose up -d
 ```
 
-The `bot` service starts automatically after the `lite-task` service passes its health check.
+The `bot` service starts automatically after the `lite-task` service passes its health check. Both services share the `./data` volume, so `bot-messages.db` persists across restarts.
 
 ### AI provider
 
@@ -392,7 +440,7 @@ Transcription requires `OPENAI_API_KEY`. Without it, the bot falls back to handl
 
 ### Groups and channels
 
-Add the bot to a Telegram group or channel. It saves all messages it sees to a local SQLite store (`bot-messages.db`). From your private chat with the bot, you can ask it to read group history:
+Add the bot to a Telegram group or channel. It saves all messages it sees to `data/bot-messages.db`. From your private chat with the bot, you can ask it to read group history:
 
 - "What was discussed in the team group today?"
 - "Create tasks from the last 20 messages in the project channel"
@@ -445,10 +493,10 @@ task-light/
 │   ├── agent.ts           # AI agent loop (Anthropic / OpenAI) + voice transcription
 │   ├── tools.ts           # Tool definitions and REST API executor
 │   ├── media.ts           # Telegram file download helpers
-│   └── store.ts           # SQLite store for group/channel message history
+│   └── store.ts           # SQLite store for group/channel message history (data/bot-messages.db)
 ├── db/
-│   ├── database.ts        # SQLite connection (node:sqlite built-in)
-│   └── queries.ts         # CRUD helpers
+│   ├── database.ts        # DB adapter — local SQLite (node:sqlite) or Turso (@libsql/client)
+│   └── queries.ts         # Async CRUD helpers (work with both adapters)
 ├── mcp/
 │   ├── server.ts          # MCP stdio server — direct SQLite access
 │   └── http-client.ts     # MCP stdio server — HTTP client (compilable)
@@ -464,6 +512,7 @@ task-light/
 │   │           └── [taskId]/
 │   │               ├── index.tsx  # Task detail (attachments, status update)
 │   │               └── edit.tsx
+│   ├── mcp.ts             # MCP Streamable HTTP endpoint (/mcp)
 │   └── api/
 │       ├── projects/
 │       ├── tasks/
@@ -477,6 +526,10 @@ task-light/
 │   └── VoiceRecorder.tsx      # In-browser voice memo recorder
 ├── components/
 │   └── Badge.tsx
+├── data/                  # Runtime data (gitignored) — DB files + uploads
+│   ├── task-light.db      # Main app SQLite database (local mode)
+│   ├── bot-messages.db    # Telegram message history
+│   └── uploads/           # Uploaded files
 ├── Dockerfile
 ├── docker-compose.yml
 ├── .env.example
@@ -487,17 +540,17 @@ task-light/
 
 ## Stack
 
-| Layer         | Technology                               |
-| ------------- | ---------------------------------------- |
-| Runtime       | Deno 2.2+                                |
-| Framework     | Fresh 2.2                                |
-| Bundler       | Vite 7 + `@fresh/plugin-vite`            |
-| Styling       | Tailwind CSS v4                          |
-| Database      | SQLite via `node:sqlite` (Deno built-in) |
-| Interactivity | Preact islands + `@preact/signals`       |
-| MCP           | `@modelcontextprotocol/sdk`              |
-| Telegram bot  | grammY                                   |
-| AI agent      | Anthropic SDK / OpenAI SDK               |
+| Layer         | Technology                                              |
+| ------------- | ------------------------------------------------------- |
+| Runtime       | Deno 2.2+                                               |
+| Framework     | Fresh 2.2                                               |
+| Bundler       | Vite 7 + `@fresh/plugin-vite`                           |
+| Styling       | Tailwind CSS v4                                         |
+| Database      | SQLite via `node:sqlite` (local) or Turso (`@libsql/client`) |
+| Interactivity | Preact islands + `@preact/signals`                      |
+| MCP           | `@modelcontextprotocol/sdk`                             |
+| Telegram bot  | grammY                                                  |
+| AI agent      | Anthropic SDK / OpenAI SDK                              |
 
 ---
 
@@ -518,7 +571,14 @@ task-light/
 
 ## Data
 
-- **Database**: `task-light.db` — created automatically in the working directory
-- **Uploads**: `data/uploads/` — created automatically
-- **Bot message store**: `bot-messages.db` — created automatically when the bot runs
-- All paths are relative to the process working directory, making them easy to mount as Docker volumes
+All runtime data lives under `data/` (relative to the working directory):
+
+| Path                  | Contents                                              |
+| --------------------- | ----------------------------------------------------- |
+| `data/task-light.db`  | Main app database (local SQLite mode only)            |
+| `data/bot-messages.db`| Telegram group/channel message history (always local) |
+| `data/uploads/`       | Uploaded files (images, audio, video)                 |
+
+All files are created automatically on first run. In Docker, the entire `data/` directory is bind-mounted from the host (`./data:/app/data`), so data survives container restarts and image rebuilds.
+
+When Turso is configured, `data/task-light.db` is never written — but `data/uploads/` is still used for file storage.

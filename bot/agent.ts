@@ -43,7 +43,8 @@ Rules:
 - When extracting tasks from a conversation, identify ALL distinct action items and create them all in one go.
 - When the user sends a photo, you can see its content. Analyse it and act on what you see.
 - When the user sends a voice message, file, or photo and wants to attach it to a task, call upload_attachment with the task_id. Never say you cannot handle files.
-- When a message contains [Voice transcription]: ..., treat that text as the user's spoken words and act on them — create tasks, update status, answer questions, etc. The audio file is also available to attach if requested.
+- When a message contains [Voice transcription]: ..., treat that text as the user's spoken words and act on them — create tasks, update status, answer questions, etc. The audio file is also available to attach.
+- If "Recent messages in this chat:" shows the user previously said to attach their next file/voice note to a task, honour that instruction now — call upload_attachment automatically without asking again.
 - Today's date: ${date}`;
 }
 
