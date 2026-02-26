@@ -23,4 +23,5 @@ data/
 .playwright-mcp/
 node_modules/
 TODO.md
+bot-messages.db
 
