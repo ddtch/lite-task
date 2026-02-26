@@ -25,3 +25,6 @@ node_modules/
 TODO.md
 bot-messages.db
 
+task-light.db
+task-light.db-shm
+task-light.db-wal
