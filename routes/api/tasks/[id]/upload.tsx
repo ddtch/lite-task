@@ -31,18 +31,30 @@ export const handler = define.handlers({
     }
 
     const mime = file.type;
-    const isImage = mime.startsWith("image/");
-    const isAudio = mime.startsWith("audio/");
-    if (!isImage && !isAudio) {
+    const baseMime = mime.split(";")[0].trim();
+    const isImage = baseMime.startsWith("image/");
+    const isAudio = baseMime.startsWith("audio/");
+    const isVideo = baseMime.startsWith("video/");
+    if (!isImage && !isAudio && !isVideo) {
       return Response.json(
-        { error: "Only images and audio files are supported" },
+        { error: "Only images, audio, and video files are supported" },
         { status: 422 },
       );
     }
 
+    // audio/webm and audio/ogg are recorded voice memos from the browser
+    const VOICE_BASES = new Set(["audio/webm", "audio/ogg"]);
+    const attachType = isImage
+      ? "image"
+      : isVideo
+      ? "video"
+      : VOICE_BASES.has(baseMime)
+      ? "voice"
+      : "audio";
+
     await ensureUploadsDir();
 
-    const ext = extname(file.name) || (isImage ? ".png" : ".webm");
+    const ext = extname(file.name) || (isImage ? ".png" : isVideo ? ".mp4" : isAudio ? ".webm" : ".bin");
     const id = globalThis.crypto.randomUUID();
     const filename = `${id}${ext}`;
     const dest = resolve(UPLOADS_DIR, filename);
@@ -52,7 +64,7 @@ export const handler = define.handlers({
 
     const attachmentId = createAttachment(
       taskId,
-      isImage ? "image" : "voice",
+      attachType,
       filename,
       file.name,
       mime,
@@ -63,7 +75,7 @@ export const handler = define.handlers({
       id: attachmentId,
       filename,
       url: `/api/uploads/${filename}`,
-      type: isImage ? "image" : "voice",
+      type: attachType,
       original_name: file.name,
     }, { status: 201 });
   },

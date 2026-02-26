@@ -10,6 +10,7 @@ import {
 import { PriorityBadge, StatusBadge } from "../../../../../components/Badge.tsx";
 import VoiceRecorder from "../../../../../islands/VoiceRecorder.tsx";
 import AttachmentUploader from "../../../../../islands/AttachmentUploader.tsx";
+import ImageLightbox from "../../../../../islands/ImageLightbox.tsx";
 
 export const handler = define.handlers({
   async GET(ctx) {
@@ -52,10 +53,32 @@ export const handler = define.handlers({
   },
 });
 
+function renderWithLinks(text: string) {
+  // Split on URLs, keeping them as separate parts via capturing group
+  const parts = text.split(/(https?:\/\/[^\s]+)/g);
+  return parts.map((part, i) =>
+    /^https?:\/\//.test(part)
+      ? (
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-blue-400 hover:text-blue-300 underline break-all"
+        >
+          {part}
+        </a>
+      )
+      : part
+  );
+}
+
 export default define.page<typeof handler>(function TaskDetailPage({ data }) {
   const { project, task, attachments } = data;
   const images = attachments.filter((a) => a.type === "image");
   const voices = attachments.filter((a) => a.type === "voice");
+  const audios = attachments.filter((a) => a.type === "audio");
+  const videos = attachments.filter((a) => a.type === "video");
 
   return (
     <div class="max-w-3xl">
@@ -143,7 +166,7 @@ export default define.page<typeof handler>(function TaskDetailPage({ data }) {
             Description
           </p>
           <p class="text-zinc-300 whitespace-pre-wrap leading-relaxed">
-            {task.description}
+            {renderWithLinks(task.description)}
           </p>
         </div>
       )}
@@ -154,27 +177,62 @@ export default define.page<typeof handler>(function TaskDetailPage({ data }) {
           Images ({images.length})
         </p>
         {images.length > 0 && (
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-            {images.map((a) => (
+          <ImageLightbox images={images.map((a) => ({ id: a.id, filename: a.filename, original_name: a.original_name }))} />
+        )}
+        <AttachmentUploader taskId={task.id} type="image" />
+      </div>
+
+      {/* Audio files */}
+      <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-4">
+        <p class="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-4">
+          Audio ({audios.length})
+        </p>
+        {audios.length > 0 && (
+          <div class="space-y-2 mb-4">
+            {audios.map((a) => (
               <div
                 key={a.id}
-                class="relative group rounded-lg overflow-hidden border border-zinc-800 bg-zinc-950 aspect-square"
+                class="flex items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3"
               >
-                <img
-                  src={`/api/uploads/${a.filename}`}
-                  alt={a.original_name}
-                  class="w-full h-full object-cover"
-                />
-                <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-                  <span class="text-xs text-white truncate">
-                    {a.original_name}
-                  </span>
+                <span class="text-blue-400 text-lg">🎵</span>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm text-zinc-300 truncate">{a.original_name}</p>
+                  <audio
+                    src={`/api/uploads/${a.filename}`}
+                    controls
+                    class="w-full mt-1 h-8"
+                  />
                 </div>
               </div>
             ))}
           </div>
         )}
-        <AttachmentUploader taskId={task.id} type="image" />
+        <AttachmentUploader taskId={task.id} type="audio" />
+      </div>
+
+      {/* Video files */}
+      <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-4">
+        <p class="text-xs text-zinc-500 font-medium uppercase tracking-wider mb-4">
+          Video ({videos.length})
+        </p>
+        {videos.length > 0 && (
+          <div class="space-y-3 mb-4">
+            {videos.map((a) => (
+              <div
+                key={a.id}
+                class="bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden"
+              >
+                <video
+                  src={`/api/uploads/${a.filename}`}
+                  controls
+                  class="w-full max-h-64"
+                />
+                <p class="text-xs text-zinc-500 px-3 py-2 truncate">{a.original_name}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        <AttachmentUploader taskId={task.id} type="video" />
       </div>
 
       {/* Voice memos */}

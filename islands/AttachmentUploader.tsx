@@ -1,29 +1,39 @@
 import { useRef } from "preact/hooks";
 import { useSignal } from "@preact/signals";
 
+type UploadType = "image" | "audio" | "video";
+
 interface Props {
   taskId: number;
-  type: "image";
+  type: UploadType;
 }
 
-interface UploadedFile {
-  url: string;
-  filename: string;
-  original_name: string;
-}
+const CONFIG: Record<UploadType, { accept: string; label: string; hint: string }> = {
+  image: {
+    accept: "image/*",
+    label: "Drop an image here or",
+    hint: "PNG, JPG, GIF, WebP",
+  },
+  audio: {
+    accept: "audio/*",
+    label: "Drop an audio file here or",
+    hint: "MP3, M4A, WAV, OGG",
+  },
+  video: {
+    accept: "video/*",
+    label: "Drop a video file here or",
+    hint: "MP4, MOV, WebM",
+  },
+};
 
 export default function AttachmentUploader({ taskId, type }: Props) {
   const dragging = useSignal(false);
   const uploading = useSignal(false);
-  const uploaded = useSignal<UploadedFile[]>([]);
   const error = useSignal<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const cfg = CONFIG[type];
 
   async function uploadFile(file: File) {
-    if (!file.type.startsWith("image/")) {
-      error.value = "Only image files are supported here";
-      return;
-    }
     error.value = null;
     uploading.value = true;
 
@@ -39,9 +49,6 @@ export default function AttachmentUploader({ taskId, type }: Props) {
         error.value = body.error ?? "Upload failed";
         return;
       }
-      const data = await res.json() as UploadedFile;
-      uploaded.value = [...uploaded.value, data];
-      // Refresh the page so the new image appears in the list
       globalThis.location.reload();
     } catch (err) {
       error.value = String(err);
@@ -81,7 +88,7 @@ export default function AttachmentUploader({ taskId, type }: Props) {
         <input
           ref={inputRef}
           type="file"
-          accept="image/*"
+          accept={cfg.accept}
           class="hidden"
           onChange={handleChange}
         />
@@ -95,12 +102,10 @@ export default function AttachmentUploader({ taskId, type }: Props) {
           : (
             <>
               <p class="text-zinc-400 text-sm">
-                Drop an image here or{" "}
+                {cfg.label}{" "}
                 <span class="text-violet-400 underline">browse</span>
               </p>
-              <p class="text-zinc-600 text-xs mt-1">
-                PNG, JPG, GIF, WebP
-              </p>
+              <p class="text-zinc-600 text-xs mt-1">{cfg.hint}</p>
             </>
           )}
       </div>

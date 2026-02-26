@@ -169,6 +169,21 @@ const TOOLS = [
       required: ["id"],
     },
   },
+  {
+    name: "get_attachment",
+    description:
+      "Download a task attachment image and return it as base64 so you can view its contents. Get the filename from get_task results (attachments[].filename).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        filename: {
+          type: "string",
+          description: "Attachment filename (e.g. telegram-123.jpg)",
+        },
+      },
+      required: ["filename"],
+    },
+  },
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -184,7 +199,24 @@ server.setRequestHandler(ListToolsRequestSchema, () => ({
   tools: TOOLS,
 }));
 
-server.setRequestHandler(CallToolRequestSchema, (req) => {
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 8192;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+function mimeFromFilename(filename: string): string {
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  return (
+    { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp" }[ext] ??
+    "image/jpeg"
+  );
+}
+
+server.setRequestHandler(CallToolRequestSchema, async (req) => {
   const { name, arguments: args } = req.params;
   const a = (args ?? {}) as Record<string, unknown>;
 
@@ -309,6 +341,23 @@ server.setRequestHandler(CallToolRequestSchema, (req) => {
         if (!getTask(id)) throw new Error(`Task ${id} not found`);
         deleteTask(id);
         return { content: [{ type: "text", text: `Task ${id} deleted.` }] };
+      }
+
+      case "get_attachment": {
+        const filename = String(a.filename ?? "").trim();
+        if (!filename) throw new Error("filename is required");
+        // Guard against path traversal
+        if (filename.includes("/") || filename.includes("\\") || filename.includes("..")) {
+          throw new Error("Invalid filename");
+        }
+        const bytes = await Deno.readFile(`data/uploads/${filename}`);
+        return {
+          content: [{
+            type: "image",
+            data: bytesToBase64(bytes),
+            mimeType: mimeFromFilename(filename),
+          }],
+        };
       }
 
       default:

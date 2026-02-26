@@ -1,6 +1,29 @@
 import { getDb } from "./database.ts";
 
 // ---------------------------------------------------------------------------
+// HTML entity decoding
+// ---------------------------------------------------------------------------
+
+function decodeHtml(str: string | null | undefined): string {
+  if (!str) return str ?? "";
+  return str
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
+function decodeProject(p: Project): Project {
+  return { ...p, name: decodeHtml(p.name), description: decodeHtml(p.description) };
+}
+
+function decodeTask(t: Task): Task {
+  return { ...t, title: decodeHtml(t.title), description: decodeHtml(t.description) };
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -27,7 +50,7 @@ export interface Task {
 export interface Attachment {
   id: number;
   task_id: number;
-  type: "image" | "voice";
+  type: "image" | "voice" | "audio" | "video";
   filename: string;
   original_name: string;
   mime_type: string;
@@ -41,21 +64,22 @@ export interface Attachment {
 
 export function listProjects(): Project[] {
   const db = getDb();
-  return db.prepare(`
+  return (db.prepare(`
     SELECT p.*,
            COUNT(t.id) AS task_count
     FROM projects p
     LEFT JOIN tasks t ON t.project_id = p.id
     GROUP BY p.id
     ORDER BY p.updated_at DESC
-  `).all() as unknown as Project[];
+  `).all() as unknown as Project[]).map(decodeProject);
 }
 
 export function getProject(id: number): Project | undefined {
   const db = getDb();
-  return db.prepare(
+  const row = db.prepare(
     "SELECT * FROM projects WHERE id = ?",
   ).get(id) as unknown as Project | undefined;
+  return row ? decodeProject(row) : undefined;
 }
 
 export function createProject(name: string, description: string): number {
@@ -84,14 +108,14 @@ export function deleteProject(id: number): void {
 
 export function listTasks(projectId: number): Task[] {
   const db = getDb();
-  return db.prepare(`
+  return (db.prepare(`
     SELECT * FROM tasks
     WHERE project_id = ?
     ORDER BY
       CASE status WHEN 'todo' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END,
       CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
       updated_at DESC
-  `).all(projectId) as unknown as Task[];
+  `).all(projectId) as unknown as Task[]).map(decodeTask);
 }
 
 export function listAllTasks(opts?: {
@@ -117,14 +141,15 @@ export function listAllTasks(opts?: {
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-  return db.prepare(`SELECT * FROM tasks ${where} ORDER BY updated_at DESC`).all(
+  return (db.prepare(`SELECT * FROM tasks ${where} ORDER BY updated_at DESC`).all(
     ...params,
-  ) as unknown as Task[];
+  ) as unknown as Task[]).map(decodeTask);
 }
 
 export function getTask(id: number): Task | undefined {
   const db = getDb();
-  return db.prepare("SELECT * FROM tasks WHERE id = ?").get(id) as unknown as Task | undefined;
+  const row = db.prepare("SELECT * FROM tasks WHERE id = ?").get(id) as unknown as Task | undefined;
+  return row ? decodeTask(row) : undefined;
 }
 
 export function createTask(

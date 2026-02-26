@@ -3,9 +3,26 @@
  *
  * Tools mirror mcp/http-client.ts but export schemas for both
  * Anthropic and OpenAI tool-calling formats.
+ *
+ * Also includes local tools (get_chat_messages, list_chats) that
+ * read from the bot's own SQLite message store instead of the REST API.
  */
 
-const BASE_URL = (Deno.env.get("LITE_TASK_URL") ?? "http://localhost:8000")
+import { getMessages, listChats } from "./store.ts";
+import type { MediaFile } from "./media.ts";
+
+// ---------------------------------------------------------------------------
+// Session media — set by main.ts before calling runAgent so the
+// upload_attachment tool knows what file the user just sent.
+// ---------------------------------------------------------------------------
+
+let _sessionMedia: MediaFile | null = null;
+
+export function setSessionMedia(media: MediaFile | null): void {
+  _sessionMedia = media;
+}
+
+const BASE_URL = (Deno.env.get("LITE_TASK_URL") ?? "http://localhost:8011")
   .replace(/\/$/, "");
 
 async function api<T = unknown>(
@@ -149,6 +166,38 @@ const TOOL_SPECS: ToolSpec[] = [
     },
     required: ["id"],
   },
+  {
+    name: "upload_attachment",
+    description:
+      "Upload the photo, voice message, or file that the user just sent to a specific task as an attachment. Only call this when the user has sent a file in the current message.",
+    properties: {
+      task_id: { type: "number", description: "Task ID to attach the file to (required)" },
+    },
+    required: ["task_id"],
+  },
+  {
+    name: "list_chats",
+    description:
+      "List all Telegram groups and channels the bot has received messages from. Use this to find a chat_id when the user refers to a group or channel by name.",
+    properties: {},
+    required: [],
+  },
+  {
+    name: "get_chat_messages",
+    description:
+      "Get recent messages from a Telegram group or channel that the bot is a member of. Use this to read conversation history before extracting tasks or summarising discussions.",
+    properties: {
+      chat_id: {
+        type: "number",
+        description: "Telegram chat ID (negative integer for groups/channels)",
+      },
+      limit: {
+        type: "number",
+        description: "How many recent messages to return (default: 20, max: 50)",
+      },
+    },
+    required: ["chat_id"],
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -260,6 +309,49 @@ export async function executeTool(
     case "delete_task": {
       await api("DELETE", `/api/tasks/${Number(args.id)}`);
       return `Task ${args.id} deleted.`;
+    }
+
+    case "upload_attachment": {
+      if (!_sessionMedia) {
+        throw new Error(
+          "No file in the current message. The user needs to send a photo or file first.",
+        );
+      }
+      const taskId = Number(args.task_id);
+      if (!taskId) throw new Error("task_id is required");
+      const form = new FormData();
+      form.append(
+        "file",
+        new Blob([_sessionMedia.bytes as Uint8Array<ArrayBuffer>], { type: _sessionMedia.mimeType }),
+        _sessionMedia.filename,
+      );
+      const res = await fetch(`${BASE_URL}/api/tasks/${taskId}/upload`, {
+        method: "POST",
+        body: form,
+      });
+      if (!res.ok) {
+        let msg = res.statusText;
+        try { const j = await res.json() as { error?: string }; msg = j.error ?? msg; } catch { /* ignore */ }
+        throw new Error(`Upload failed (${res.status}): ${msg}`);
+      }
+      return JSON.stringify(await res.json(), null, 2);
+    }
+
+    case "list_chats": {
+      const chats = listChats();
+      if (chats.length === 0) return "No chats recorded yet. The bot must be a member of a group or channel and have received at least one message there.";
+      return JSON.stringify(chats, null, 2);
+    }
+
+    case "get_chat_messages": {
+      const limit = Math.min(Number(args.limit ?? 20), 50);
+      const messages = getMessages(Number(args.chat_id), limit);
+      if (messages.length === 0) return "No messages found for this chat. Make sure the bot is a member and has been running while messages were sent.";
+      const lines = messages.map((m) => {
+        const d = new Date(m.date * 1000).toISOString().slice(0, 16).replace("T", " ");
+        return `[${d}] ${m.from_name}: ${m.text}`;
+      });
+      return lines.join("\n");
     }
 
     default:

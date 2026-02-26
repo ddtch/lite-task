@@ -5,11 +5,11 @@
  * Works with local dev, self-hosted, or Dockerized deployments.
  *
  * Configuration (env vars):
- *   LITE_TASK_URL  — base URL of your lite-task instance (default: http://localhost:5173)
+ *   LITE_TASK_URL  — base URL of your lite-task instance (default: http://localhost:5111)
  *
  * Usage:
  *   # Run directly
- *   LITE_TASK_URL=http://localhost:8000 deno run -A mcp/http-client.ts
+ *   LITE_TASK_URL=http://localhost:8011 deno run -A mcp/http-client.ts
  *
  *   # Compile to a standalone binary (no Deno needed to run)
  *   deno task compile-mcp
@@ -20,7 +20,7 @@
  *     "mcpServers": {
  *       "lite-task": {
  *         "command": "/path/to/lite-task-mcp",
- *         "env": { "LITE_TASK_URL": "http://localhost:8000" }
+ *         "env": { "LITE_TASK_URL": "http://localhost:8011" }
  *       }
  *     }
  *   }
@@ -37,7 +37,7 @@ import {
 // HTTP helper
 // ---------------------------------------------------------------------------
 
-const BASE_URL = (Deno.env.get("LITE_TASK_URL") ?? "http://localhost:5173")
+const BASE_URL = (Deno.env.get("LITE_TASK_URL") ?? "http://localhost:5111")
   .replace(/\/$/, "");
 
 async function api<T = unknown>(
@@ -193,7 +193,43 @@ const TOOLS = [
       required: ["id"],
     },
   },
+  {
+    name: "get_attachment",
+    description:
+      "Download a task attachment image and return it as base64 so you can view its contents. Get the filename from get_task results (attachments[].filename).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        filename: {
+          type: "string",
+          description: "Attachment filename (e.g. telegram-123.jpg)",
+        },
+      },
+      required: ["filename"],
+    },
+  },
 ] as const;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 8192;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+function mimeFromFilename(filename: string): string {
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  return (
+    { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp" }[ext] ??
+    "image/jpeg"
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Server
@@ -281,6 +317,25 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       case "delete_task": {
         await api("DELETE", `/api/tasks/${Number(a.id)}`);
         return { content: [{ type: "text", text: `Task ${a.id} deleted.` }] };
+      }
+
+      case "get_attachment": {
+        const filename = String(a.filename ?? "").trim();
+        if (!filename) throw new Error("filename is required");
+        if (filename.includes("/") || filename.includes("\\") || filename.includes("..")) {
+          throw new Error("Invalid filename");
+        }
+        const res = await fetch(`${BASE_URL}/api/uploads/${encodeURIComponent(filename)}`);
+        if (!res.ok) throw new Error(`Attachment not found: ${filename}`);
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        const mimeType = res.headers.get("content-type") ?? mimeFromFilename(filename);
+        return {
+          content: [{
+            type: "image",
+            data: bytesToBase64(bytes),
+            mimeType,
+          }],
+        };
       }
 
       default:

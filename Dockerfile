@@ -49,6 +49,6 @@ EXPOSE 8000
 
 # Health check — pings the projects API
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD deno eval "const r = await fetch('http://localhost:8000/api/projects'); if (!r.ok) Deno.exit(1);"
+  CMD deno eval "const r = await fetch('http://localhost:8011/api/projects'); if (!r.ok) Deno.exit(1);"
 
 CMD ["deno", "serve", "-A", "--port=8000", "--host=0.0.0.0", "_fresh/server.js"]

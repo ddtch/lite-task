@@ -3,11 +3,14 @@
  *
  * Provider priority: Anthropic (if ANTHROPIC_API_KEY set) → OpenAI (if OPENAI_API_KEY set)
  * Throws at startup if neither key is present.
+ *
+ * Supports vision (photos) and file attachment via the upload_attachment tool.
  */
 
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { anthropicTools, executeTool, openaiTools } from "./tools.ts";
+import { bytesToBase64, isVisionMime, type MediaFile } from "./media.ts";
 
 const ANTHROPIC_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY");
@@ -28,12 +31,19 @@ function buildSystemPrompt(): string {
   const date = new Date().toISOString().split("T")[0];
   return `You are a task management assistant for lite-task.
 You help users create, update, and review projects and tasks via a chat interface.
+You operate in private chats, Telegram groups, and channels.
 
 Rules:
 - When a project name is mentioned, call list_projects first and fuzzy-match the name.
 - When creating a task without specifying a project, ask which project to use.
 - Be concise — this is a chat, not a document.
 - After any write operation, confirm what was done in one sentence.
+- Messages may start with [Group: name] or [Channel: name] — that's the source context, not part of the request.
+- If "Recent messages in this chat:" is present, use that conversation history to extract action items or answer questions.
+- When extracting tasks from a conversation, identify ALL distinct action items and create them all in one go.
+- When the user sends a photo, you can see its content. Analyse it and act on what you see.
+- When the user sends a voice message, file, or photo and wants to attach it to a task, call upload_attachment with the task_id. Never say you cannot handle files.
+- When a message contains [Voice transcription]: ..., treat that text as the user's spoken words and act on them — create tasks, update status, answer questions, etc. The audio file is also available to attach if requested.
 - Today's date: ${date}`;
 }
 
@@ -43,10 +53,27 @@ const MAX_ITERATIONS = 10;
 // Anthropic agent loop
 // ---------------------------------------------------------------------------
 
-async function runAnthropic(userMessage: string): Promise<string> {
+async function runAnthropic(userMessage: string, vision?: MediaFile): Promise<string> {
   const client = new Anthropic({ apiKey: ANTHROPIC_KEY });
+
+  // Build the first user message — with or without an inline image
   // deno-lint-ignore no-explicit-any
-  const messages: any[] = [{ role: "user", content: userMessage }];
+  const firstContent: any = vision && isVisionMime(vision.mimeType)
+    ? [
+        {
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: vision.mimeType as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+            data: bytesToBase64(vision.bytes),
+          },
+        },
+        { type: "text", text: userMessage },
+      ]
+    : userMessage;
+
+  // deno-lint-ignore no-explicit-any
+  const messages: any[] = [{ role: "user", content: firstContent }];
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     const response = await client.messages.create({
@@ -65,7 +92,6 @@ async function runAnthropic(userMessage: string): Promise<string> {
         .join("\n");
     }
 
-    // Append assistant turn
     messages.push({ role: "assistant", content: response.content });
 
     const toolUseBlocks = response.content.filter(
@@ -74,14 +100,10 @@ async function runAnthropic(userMessage: string): Promise<string> {
 
     if (toolUseBlocks.length === 0) break;
 
-    // Execute all tool calls, then append results as a single user turn
     const toolResults = await Promise.all(
       toolUseBlocks.map(async (block) => {
         try {
-          const result = await executeTool(
-            block.name,
-            block.input as Record<string, unknown>,
-          );
+          const result = await executeTool(block.name, block.input as Record<string, unknown>);
           return { type: "tool_result" as const, tool_use_id: block.id, content: result };
         } catch (err) {
           return {
@@ -104,11 +126,26 @@ async function runAnthropic(userMessage: string): Promise<string> {
 // OpenAI agent loop
 // ---------------------------------------------------------------------------
 
-async function runOpenAI(userMessage: string): Promise<string> {
+async function runOpenAI(userMessage: string, vision?: MediaFile): Promise<string> {
   const client = new OpenAI({ apiKey: OPENAI_KEY });
+
+  // Build first user message content
+  const firstContent: OpenAI.Chat.ChatCompletionContentPart[] =
+    vision && isVisionMime(vision.mimeType)
+      ? [
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:${vision.mimeType};base64,${bytesToBase64(vision.bytes)}`,
+            },
+          },
+          { type: "text", text: userMessage },
+        ]
+      : [{ type: "text", text: userMessage }];
+
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: "system", content: buildSystemPrompt() },
-    { role: "user", content: userMessage },
+    { role: "user", content: firstContent },
   ];
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
@@ -127,24 +164,21 @@ async function runOpenAI(userMessage: string): Promise<string> {
 
     if (choice.finish_reason !== "tool_calls") break;
 
-    const toolResults: OpenAI.Chat.ChatCompletionToolMessageParam[] =
-      await Promise.all(
-        (choice.message.tool_calls ?? []).map(async (tc) => {
-          try {
-            const args = JSON.parse(
-              tc.function.arguments,
-            ) as Record<string, unknown>;
-            const result = await executeTool(tc.function.name, args);
-            return { role: "tool" as const, tool_call_id: tc.id, content: result };
-          } catch (err) {
-            return {
-              role: "tool" as const,
-              tool_call_id: tc.id,
-              content: `Error: ${err instanceof Error ? err.message : String(err)}`,
-            };
-          }
-        }),
-      );
+    const toolResults: OpenAI.Chat.ChatCompletionToolMessageParam[] = await Promise.all(
+      (choice.message.tool_calls ?? []).map(async (tc) => {
+        try {
+          const args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
+          const result = await executeTool(tc.function.name, args);
+          return { role: "tool" as const, tool_call_id: tc.id, content: result };
+        } catch (err) {
+          return {
+            role: "tool" as const,
+            tool_call_id: tc.id,
+            content: `Error: ${err instanceof Error ? err.message : String(err)}`,
+          };
+        }
+      }),
+    );
 
     messages.push(...toolResults);
   }
@@ -156,6 +190,26 @@ async function runOpenAI(userMessage: string): Promise<string> {
 // Public API
 // ---------------------------------------------------------------------------
 
-export function runAgent(userMessage: string): Promise<string> {
-  return USE_ANTHROPIC ? runAnthropic(userMessage) : runOpenAI(userMessage);
+export function runAgent(userMessage: string, vision?: MediaFile): Promise<string> {
+  return USE_ANTHROPIC ? runAnthropic(userMessage, vision) : runOpenAI(userMessage, vision);
+}
+
+// ---------------------------------------------------------------------------
+// Voice transcription (OpenAI Whisper — used regardless of agent provider)
+// ---------------------------------------------------------------------------
+
+export async function transcribeAudio(media: MediaFile): Promise<string | null> {
+  if (!OPENAI_KEY) return null;
+  try {
+    const client = new OpenAI({ apiKey: OPENAI_KEY });
+    const file = new File([media.bytes as Uint8Array<ArrayBuffer>], media.filename, { type: media.mimeType });
+    const result = await client.audio.transcriptions.create({
+      model: "whisper-1",
+      file,
+    });
+    return result.text.trim() || null;
+  } catch (err) {
+    console.error("Transcription error:", err);
+    return null;
+  }
 }

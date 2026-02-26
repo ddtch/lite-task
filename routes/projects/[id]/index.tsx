@@ -2,6 +2,7 @@ import { page } from "fresh";
 import { define } from "../../../utils.ts";
 import { deleteProject, getProject, listTasks, type Task } from "../../../db/queries.ts";
 import { PriorityBadge, StatusBadge } from "../../../components/Badge.tsx";
+import KanbanBoard from "../../../islands/KanbanBoard.tsx";
 
 export const handler = define.handlers({
   async GET(ctx) {
@@ -11,7 +12,8 @@ export const handler = define.handlers({
       return new Response("Project not found", { status: 404 });
     }
     const tasks = listTasks(id);
-    return page({ project, tasks });
+    const view = ctx.url.searchParams.get("view") === "board" ? "board" : "list";
+    return page({ project, tasks, view });
   },
 
   async POST(ctx) {
@@ -32,7 +34,7 @@ export const handler = define.handlers({
 });
 
 export default define.page<typeof handler>(function ProjectPage({ data }) {
-  const { project, tasks } = data;
+  const { project, tasks, view } = data;
 
   const todo = tasks.filter((t) => t.status === "todo");
   const inProgress = tasks.filter((t) => t.status === "in_progress");
@@ -74,14 +76,46 @@ export default define.page<typeof handler>(function ProjectPage({ data }) {
         </div>
       </div>
 
-      {/* Stats */}
-      <div class="grid grid-cols-3 gap-4 mb-8">
-        <StatCard label="To Do" count={todo.length} color="zinc" />
-        <StatCard label="In Progress" count={inProgress.length} color="blue" />
-        <StatCard label="Done" count={done.length} color="emerald" />
+      {/* Stats + view toggle */}
+      <div class="flex items-center gap-4 mb-8">
+        <div class="grid grid-cols-3 gap-4 flex-1">
+          <StatCard label="To Do" count={todo.length} color="zinc" />
+          <StatCard label="In Progress" count={inProgress.length} color="blue" />
+          <StatCard label="Done" count={done.length} color="emerald" />
+        </div>
+
+        {/* View toggle */}
+        <div class="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-1 shrink-0">
+          <a
+            href={`/projects/${project.id}?view=list`}
+            class={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              view === "list"
+                ? "bg-zinc-700 text-white"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            </svg>
+            List
+          </a>
+          <a
+            href={`/projects/${project.id}?view=board`}
+            class={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              view === "board"
+                ? "bg-zinc-700 text-white"
+                : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+            </svg>
+            Board
+          </a>
+        </div>
       </div>
 
-      {/* Task list */}
+      {/* Empty state */}
       {tasks.length === 0
         ? (
           <div class="text-center py-20 text-zinc-500 border border-dashed border-zinc-800 rounded-xl">
@@ -96,20 +130,41 @@ export default define.page<typeof handler>(function ProjectPage({ data }) {
             </p>
           </div>
         )
+        : view === "board"
+        ? (
+          /* ── Board view ── */
+          <KanbanBoard tasks={tasks} projectId={project.id} />
+        )
         : (
-          <div class="space-y-2">
-            {tasks.map((task) => (
-              <TaskRow
-                task={task}
-                projectId={project.id}
-                key={task.id}
-              />
-            ))}
+          /* ── List view ── */
+          <div class="space-y-6">
+            <TaskGroup
+              label="In Progress"
+              tasks={inProgress}
+              projectId={project.id}
+              accent="text-blue-400"
+            />
+            <TaskGroup
+              label="To Do"
+              tasks={todo}
+              projectId={project.id}
+              accent="text-zinc-400"
+            />
+            <TaskGroup
+              label="Done"
+              tasks={done}
+              projectId={project.id}
+              accent="text-emerald-400"
+            />
           </div>
         )}
     </div>
   );
 });
+
+// ---------------------------------------------------------------------------
+// Stat card
+// ---------------------------------------------------------------------------
 
 function StatCard(
   { label, count, color }: {
@@ -118,11 +173,7 @@ function StatCard(
     color: "zinc" | "blue" | "emerald";
   },
 ) {
-  const colors = {
-    zinc: "text-zinc-400",
-    blue: "text-blue-400",
-    emerald: "text-emerald-400",
-  };
+  const colors = { zinc: "text-zinc-400", blue: "text-blue-400", emerald: "text-emerald-400" };
   return (
     <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-center">
       <div class={`text-2xl font-bold ${colors[color]}`}>{count}</div>
@@ -131,9 +182,33 @@ function StatCard(
   );
 }
 
-function TaskRow(
-  { task, projectId }: { task: Task; projectId: number },
+// ---------------------------------------------------------------------------
+// List view — grouped section
+// ---------------------------------------------------------------------------
+
+function TaskGroup(
+  { label, tasks, projectId, accent }: {
+    label: string;
+    tasks: Task[];
+    projectId: number;
+    accent: string;
+  },
 ) {
+  if (tasks.length === 0) return null;
+  return (
+    <div>
+      <div class="flex items-center gap-2 mb-3">
+        <span class={`text-xs font-semibold uppercase tracking-wider ${accent}`}>{label}</span>
+        <span class="text-xs text-zinc-600 font-mono">{tasks.length}</span>
+      </div>
+      <div class="space-y-2">
+        {tasks.map((task) => <TaskRow task={task} projectId={projectId} key={task.id} />)}
+      </div>
+    </div>
+  );
+}
+
+function TaskRow({ task, projectId }: { task: Task; projectId: number }) {
   return (
     <a
       href={`/projects/${projectId}/tasks/${task.id}`}
@@ -156,3 +231,4 @@ function TaskRow(
     </a>
   );
 }
+
