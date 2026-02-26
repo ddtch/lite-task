@@ -34,6 +34,7 @@ import {
   listAllTasks,
   listAttachments,
   listProjects,
+  updateProject,
   updateTask,
 } from "../db/queries.ts";
 
@@ -71,6 +72,19 @@ const TOOLS = [
         id: { type: "number", description: "Project ID" },
       },
       required: ["id"],
+    },
+  },
+  {
+    name: "update_project",
+    description: "Rename a project or update its description.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "number", description: "Project ID" },
+        name: { type: "string", description: "New project name" },
+        description: { type: "string", description: "New description (optional)" },
+      },
+      required: ["id", "name"],
     },
   },
   {
@@ -250,6 +264,19 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
             text: JSON.stringify({ ...project, tasks }, null, 2),
           }],
         };
+      }
+
+      case "update_project": {
+        const id = Number(a.id);
+        const project = await getProject(id);
+        if (!project) throw new Error(`Project ${id} not found`);
+        const name = String(a.name ?? "").trim();
+        if (!name) throw new Error("name is required");
+        const description = a.description !== undefined
+          ? String(a.description).trim()
+          : project.description;
+        await updateProject(id, name, description);
+        return { content: [{ type: "text", text: JSON.stringify({ id, name, description }, null, 2) }] };
       }
 
       case "delete_project": {

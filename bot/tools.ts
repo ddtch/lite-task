@@ -84,6 +84,16 @@ const TOOL_SPECS: ToolSpec[] = [
     required: ["id"],
   },
   {
+    name: "update_project",
+    description: "Rename a project or update its description.",
+    properties: {
+      id: { type: "number", description: "Project ID (required)" },
+      name: { type: "string", description: "New project name (required)" },
+      description: { type: "string", description: "New description (optional)" },
+    },
+    required: ["id", "name"],
+  },
+  {
     name: "delete_project",
     description: "Delete a project and all its tasks.",
     properties: {
@@ -255,6 +265,17 @@ export async function executeTool(
 
     case "get_project": {
       const data = await api("GET", `/api/projects/${Number(args.id)}`);
+      return JSON.stringify(data, null, 2);
+    }
+
+    case "update_project": {
+      const id = Number(args.id);
+      if (!id) throw new Error("id is required");
+      const name = String(args.name ?? "").trim();
+      if (!name) throw new Error("name is required");
+      const body: Record<string, unknown> = { name };
+      if (args.description !== undefined) body.description = String(args.description).trim();
+      const data = await api("PUT", `/api/projects/${id}`, body);
       return JSON.stringify(data, null, 2);
     }
 
