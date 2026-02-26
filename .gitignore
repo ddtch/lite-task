@@ -1,4 +1,27 @@
+# dotenv environment variable files
 .env
-node_modules
-data
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# Fresh build directory
+_fresh/
+# npm + other dependencies
+node_modules/
+vendor/
+
+# Compiled MCP binary
+lite-task-mcp
+lite-task-mcp.exe
+
+# Local database and uploads (user data — not committed)
+task-light.db
+task-light.db-wal
+task-light.db-shm
+data/
+
+# Playwright screenshots
+.playwright-mcp/
 TODO.md
+bot-messages.db
