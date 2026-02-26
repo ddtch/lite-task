@@ -17,11 +17,11 @@ lite-task-mcp.exe
 
 # Local database and uploads (user data — not committed)
 task-light.db
-task-light.db-wal
-task-light.db-shm
 data/
 
 # Playwright screenshots
 .playwright-mcp/
+node_modules/
 TODO.md
 bot-messages.db
+
