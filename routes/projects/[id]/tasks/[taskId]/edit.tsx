@@ -32,9 +32,7 @@ export const handler = define.handlers({
     const status = form.get("status") as string;
 
     if (!title) {
-      return page({ project, task, error: "Title is required" }, {
-        status: 422,
-      });
+      return page({ project, task, error: "Title is required" }, { status: 422 });
     }
 
     await updateTask(taskId, {
@@ -55,59 +53,47 @@ export default define.page<typeof handler>(function EditTaskPage({ data }) {
   const { project, task, error } = data;
 
   return (
-    <div class="max-w-2xl">
-      <div class="flex items-center gap-2 text-sm text-zinc-500 mb-6">
-        <a href="/projects" class="hover:text-zinc-300 transition-colors">
-          Projects
+    <div style="max-width: 36rem;">
+      {/* Breadcrumb */}
+      <div class="t-breadcrumb mb-5" style="font-size:.82rem; letter-spacing:.14em;">
+        <a href="/projects">ROOT/PROJECTS</a>
+        <span style="color: var(--b1);">/</span>
+        <a href={`/projects/${project.id}`}>{project.name.toUpperCase()}</a>
+        <span style="color: var(--b1);">/</span>
+        <a href={`/projects/${project.id}/tasks/${task.id}`} style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px;">
+          {task.title.toUpperCase()}
         </a>
-        <span>/</span>
-        <a
-          href={`/projects/${project.id}`}
-          class="hover:text-zinc-300 transition-colors"
-        >
-          {project.name}
-        </a>
-        <span>/</span>
-        <a
-          href={`/projects/${project.id}/tasks/${task.id}`}
-          class="hover:text-zinc-300 transition-colors truncate"
-        >
-          {task.title}
-        </a>
-        <span>/</span>
-        <span class="text-zinc-300">Edit</span>
+        <span style="color: var(--b1);">/</span>
+        <span style="color: var(--green-dim);">EDIT</span>
       </div>
 
-      <h1 class="text-2xl font-bold text-white mb-8">Edit Task</h1>
+      <h1 class="t-h1 mb-7">
+        EDIT_TASK
+        <span class="t-cursor" />
+      </h1>
 
       {error && (
-        <div class="mb-6 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
-          {error}
-        </div>
+        <div class="t-error mb-5">ERR: {error}</div>
       )}
 
-      <form method="POST" class="space-y-6">
+      <form method="POST" class="flex flex-col gap-5">
         <div>
-          <label class="block text-sm font-medium text-zinc-300 mb-1.5">
-            Title <span class="text-red-400">*</span>
-          </label>
+          <label class="t-field-label">TITLE <span style="color:var(--red);">*</span></label>
           <input
             type="text"
             name="title"
             required
             value={task.title}
-            class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
+            class="t-input"
           />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-zinc-300 mb-1.5">
-            Description
-          </label>
+          <label class="t-field-label">DESCRIPTION</label>
           <textarea
             name="description"
             rows={4}
-            class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors resize-none"
+            class="t-input"
           >
             {task.description}
           </textarea>
@@ -115,49 +101,29 @@ export default define.page<typeof handler>(function EditTaskPage({ data }) {
 
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-zinc-300 mb-1.5">
-              Priority
-            </label>
-            <select
-              name="priority"
-              class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
-            >
-              <option value="low" selected={task.priority === "low"}>Low</option>
-              <option value="medium" selected={task.priority === "medium"}>Medium</option>
-              <option value="high" selected={task.priority === "high"}>High</option>
+            <label class="t-field-label">PRIORITY</label>
+            <select name="priority" class="t-input t-select">
+              <option value="low" selected={task.priority === "low"}>LOW</option>
+              <option value="medium" selected={task.priority === "medium"}>MEDIUM</option>
+              <option value="high" selected={task.priority === "high"}>HIGH</option>
             </select>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-zinc-300 mb-1.5">
-              Status
-            </label>
-            <select
-              name="status"
-              class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
-            >
-              <option value="todo" selected={task.status === "todo"}>To Do</option>
-              <option value="in_progress" selected={task.status === "in_progress"}>
-                In Progress
-              </option>
-              <option value="done" selected={task.status === "done"}>Done</option>
+            <label class="t-field-label">STATUS</label>
+            <select name="status" class="t-input t-select">
+              <option value="todo" selected={task.status === "todo"}>TODO</option>
+              <option value="in_progress" selected={task.status === "in_progress"}>ACTIVE</option>
+              <option value="done" selected={task.status === "done"}>DONE</option>
             </select>
           </div>
         </div>
 
-        <div class="flex items-center gap-3 pt-2">
-          <button
-            type="submit"
-            class="px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-medium rounded-lg transition-colors"
-          >
-            Save Changes
-          </button>
-          <a
-            href={`/projects/${project.id}/tasks/${task.id}`}
-            class="px-6 py-2.5 text-zinc-400 hover:text-zinc-200 border border-zinc-700 hover:border-zinc-600 rounded-lg transition-colors text-sm"
-          >
-            Cancel
-          </a>
+        <div
+          style="border-top: 1px solid var(--b0); padding-top: 1rem; display:flex; gap: 10px;"
+        >
+          <button type="submit" class="t-btn t-btn-primary">SAVE</button>
+          <a href={`/projects/${project.id}/tasks/${task.id}`} class="t-btn">ABORT</a>
         </div>
       </form>
     </div>

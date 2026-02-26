@@ -18,46 +18,23 @@ interface Props {
 const COLUMNS: {
   status: Status;
   label: string;
-  accent: string;
-  emptyBorder: string;
-  overBg: string;
+  accentColor: string;
 }[] = [
-  {
-    status: "todo",
-    label: "To Do",
-    accent: "text-zinc-400",
-    emptyBorder: "border-zinc-800",
-    overBg: "bg-zinc-800/30",
-  },
-  {
-    status: "in_progress",
-    label: "In Progress",
-    accent: "text-blue-400",
-    emptyBorder: "border-blue-900/40",
-    overBg: "bg-blue-950/30",
-  },
-  {
-    status: "done",
-    label: "Done",
-    accent: "text-emerald-400",
-    emptyBorder: "border-emerald-900/40",
-    overBg: "bg-emerald-950/20",
-  },
+  { status: "todo",        label: "TODO",   accentColor: "var(--green-mute)" },
+  { status: "in_progress", label: "ACTIVE", accentColor: "var(--cyan)"       },
+  { status: "done",        label: "DONE",   accentColor: "var(--green)"      },
 ];
 
 export default function KanbanBoard({ tasks: initial, projectId }: Props) {
   const [tasks, setTasks] = useState<Task[]>(initial);
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [overColumn, setOverColumn] = useState<Status | null>(null);
-  // Track confirmed server state for rollback
   const confirmed = useRef<Task[]>(initial);
 
   async function move(taskId: number, status: Status) {
-    // Skip no-op drops
     const task = tasks.find((t) => t.id === taskId);
     if (!task || task.status === status) return;
 
-    // Optimistic update
     const next = tasks.map((t) => t.id === taskId ? { ...t, status } : t);
     setTasks(next);
 
@@ -70,7 +47,6 @@ export default function KanbanBoard({ tasks: initial, projectId }: Props) {
       if (!res.ok) throw new Error();
       confirmed.current = next;
     } catch {
-      // Revert to last confirmed state on failure
       setTasks(confirmed.current);
     }
   }
@@ -84,16 +60,14 @@ export default function KanbanBoard({ tasks: initial, projectId }: Props) {
         return (
           <div
             key={col.status}
-            class={`flex flex-col gap-3 rounded-xl p-2 -m-2 transition-colors duration-150 ${
-              isOver ? col.overBg : ""
-            }`}
+            class="t-kan-col"
+            style={isOver ? "background: rgba(0,255,65,.03); transition: background 150ms;" : ""}
             onDragOver={(e) => {
               e.preventDefault();
               e.dataTransfer!.dropEffect = "move";
               setOverColumn(col.status);
             }}
             onDragLeave={(e) => {
-              // Only clear when truly leaving the column, not entering a child
               if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
                 setOverColumn(null);
               }
@@ -105,23 +79,15 @@ export default function KanbanBoard({ tasks: initial, projectId }: Props) {
               if (id) move(id, col.status);
             }}
           >
-            {/* Column header */}
-            <div class="flex items-center gap-2 px-1">
-              <span class={`text-xs font-semibold uppercase tracking-wider ${col.accent}`}>
-                {col.label}
-              </span>
-              <span class="text-xs text-zinc-600 font-mono">{colTasks.length}</span>
+            <div class="t-kan-col-hd" style={`color: ${col.accentColor};`}>
+              <span>{col.label}</span>
+              <span style="font-size:.8rem; color: var(--green-faint);">[{colTasks.length}]</span>
             </div>
 
-            {/* Cards or empty state */}
             {colTasks.length === 0
               ? (
-                <div
-                  class={`border border-dashed ${col.emptyBorder} rounded-xl py-10 text-center text-xs transition-all duration-150 ${
-                    isOver ? "border-solid text-zinc-500" : "text-zinc-700"
-                  }`}
-                >
-                  {isOver ? "Drop here" : "Empty"}
+                <div class={`t-kan-empty ${isOver ? "over" : ""}`}>
+                  {isOver ? "DROP_HERE" : "EMPTY"}
                 </div>
               )
               : (
@@ -145,11 +111,7 @@ export default function KanbanBoard({ tasks: initial, projectId }: Props) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Card
-// ---------------------------------------------------------------------------
-
-function KanbanCard(
+const KanbanCard = (
   { task, projectId, isDragging, onDragStart, onDragEnd }: {
     task: Task;
     projectId: number;
@@ -157,34 +119,31 @@ function KanbanCard(
     onDragStart: () => void;
     onDragEnd: () => void;
   },
-) {
-  return (
-    <div
-      draggable
-      onDragStart={(e) => {
-        onDragStart();
-        e.dataTransfer!.setData("text/plain", String(task.id));
-        e.dataTransfer!.effectAllowed = "move";
-      }}
-      onDragEnd={onDragEnd}
-      class={`transition-all duration-150 ${
-        isDragging ? "opacity-40 scale-[0.97]" : ""
-      }`}
+) => (
+  <div
+    draggable
+    onDragStart={(e) => {
+      onDragStart();
+      e.dataTransfer!.setData("text/plain", String(task.id));
+      e.dataTransfer!.effectAllowed = "move";
+    }}
+    onDragEnd={onDragEnd}
+    class={`t-kan-card ${isDragging ? "dragging" : ""}`}
+  >
+    <a
+      href={`/projects/${projectId}/tasks/${task.id}`}
+      draggable={false}
+      style="display:block; text-decoration:none;"
     >
-      {/* Inner <a> handles navigation; draggable=false prevents browser's default link-drag */}
-      <a
-        href={`/projects/${projectId}/tasks/${task.id}`}
-        draggable={false}
-        class="block bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 hover:bg-zinc-800/60 transition-all group cursor-grab active:cursor-grabbing"
-      >
-        <p class="text-sm font-medium text-zinc-200 group-hover:text-white leading-snug mb-3">
-          {task.title}
+      <p class="mb-2" style="font-size:.88rem; color: var(--green-dim); line-height:1.4;">
+        {task.title}
+      </p>
+      {task.description && (
+        <p class="line-clamp-2 mb-2" style="font-size:.76rem; color: var(--green-faint);">
+          {task.description}
         </p>
-        {task.description && (
-          <p class="text-xs text-zinc-500 line-clamp-2 mb-3">{task.description}</p>
-        )}
-        <PriorityBadge priority={task.priority} />
-      </a>
-    </div>
-  );
-}
+      )}
+      <PriorityBadge priority={task.priority} />
+    </a>
+  </div>
+);

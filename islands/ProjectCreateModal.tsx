@@ -12,7 +12,6 @@ export default function ProjectCreateModal() {
       return;
     }
     loading.value = true;
-    // let the native form POST go through
   }
 
   if (!open.value) {
@@ -20,80 +19,79 @@ export default function ProjectCreateModal() {
       <button
         type="button"
         onClick={() => (open.value = true)}
-        class="inline-flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium rounded-lg transition-colors"
+        class="t-btn t-btn-primary"
       >
-        <span class="text-base leading-none">+</span> New Project
+        <span>+</span> NEW_PROJECT
       </button>
     );
   }
 
   return (
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        class="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={() => (open.value = false)}
-      />
+      <div class="t-modal-bg" onClick={() => (open.value = false)} />
 
-      {/* Modal */}
-      <div class="relative bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl w-full max-w-md p-6">
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="text-lg font-semibold text-white">New Project</h2>
+      <div class="t-modal">
+        {/* Header */}
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="t-h2">INIT_PROJECT</h2>
           <button
             type="button"
             onClick={() => (open.value = false)}
-            class="text-zinc-400 hover:text-zinc-200 transition-colors text-xl leading-none"
+            style="font-family:'VT323',monospace; font-size:1.6rem; color:var(--green-mute); background:none; border:none; cursor:pointer; line-height:1; padding:0 4px;"
           >
             ×
           </button>
+        </div>
+
+        <div
+          class="mb-5 pb-1"
+          style="border-bottom: 1px solid var(--b0); font-size:.72rem; letter-spacing:.2em; color: var(--green-faint);"
+        >
+          ENTER_PROJECT_PARAMETERS
         </div>
 
         <form
           method="POST"
           action="/projects"
           onSubmit={handleSubmit}
-          class="space-y-4"
+          class="flex flex-col gap-4"
         >
           <div>
-            <label class="block text-sm font-medium text-zinc-300 mb-1.5">
-              Name <span class="text-red-400">*</span>
-            </label>
+            <label class="t-field-label">NAME <span style="color:var(--red);">*</span></label>
             <input
               type="text"
               name="name"
               required
               autofocus
-              placeholder="My awesome project..."
-              class="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
+              placeholder="project_name_here..."
+              class="t-input"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-zinc-300 mb-1.5">
-              Description
-            </label>
+            <label class="t-field-label">DESCRIPTION</label>
             <textarea
               name="description"
               rows={3}
-              placeholder="What is this project about? (optional)"
-              class="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors resize-none"
+              placeholder="// optional description..."
+              class="t-input"
             />
           </div>
 
-          <div class="flex gap-3 pt-2">
+          <div class="flex gap-3 pt-1">
             <button
               type="submit"
               disabled={loading.value}
-              class="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-60 text-white font-medium rounded-lg transition-colors"
+              class="t-btn t-btn-primary flex-1"
             >
-              {loading.value ? "Creating..." : "Create Project"}
+              {loading.value ? "CREATING..." : "EXECUTE"}
             </button>
             <button
               type="button"
               onClick={() => (open.value = false)}
-              class="px-4 py-2.5 text-zinc-400 border border-zinc-600 rounded-lg hover:border-zinc-500 hover:text-zinc-200 transition-colors"
+              class="t-btn"
             >
-              Cancel
+              ABORT
             </button>
           </div>
         </form>

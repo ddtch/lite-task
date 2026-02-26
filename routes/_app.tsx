@@ -2,7 +2,6 @@ import { define } from "../utils.ts";
 import ProjectSwitcher from "../islands/ProjectSwitcher.tsx";
 
 export default define.page(function App({ Component, url, state }) {
-  // Extract current project id from URL (/projects/123/...)
   const match = url.pathname.match(/^\/projects\/(\d+)/);
   const currentProjectId = match ? Number(match[1]) : undefined;
 
@@ -11,29 +10,35 @@ export default define.page(function App({ Component, url, state }) {
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Lite Task</title>
+        <title>LITE-TASK // TERMINAL</title>
         <link rel="icon" href="/favicon.ico?v=2" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap"
+          rel="stylesheet"
+        />
       </head>
-      <body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col">
-        <nav class="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur sticky top-0 z-10">
+      <body class="min-h-screen flex flex-col">
+        <nav class="t-nav">
           <div class="max-w-6xl mx-auto px-4 h-14 flex items-center gap-3">
-            {/* Logo */}
-            <a
-              href="/projects"
-              class="font-semibold text-white tracking-tight flex items-center gap-2 shrink-0"
-            >
-              <img src="/logo.svg" alt="Lite Task" class="w-6 h-6" />
-              Lite Task
+            <a href="/projects" class="t-nav-logo shrink-0">
+              <span style="color: var(--cyan);">[</span>
+              LT
+              <span style="color: var(--cyan);">]</span>
             </a>
 
-            {/* Divider */}
-            <span class="text-zinc-700 select-none">/</span>
+            <span class="t-nav-sep select-none">/</span>
 
-            {/* Project switcher dropdown */}
             <ProjectSwitcher
               projects={state.projects ?? []}
               currentProjectId={currentProjectId}
             />
+
+            <div class="ml-auto text-xs font-mono hidden sm:block" style="color: var(--green-faint); letter-spacing: .14em;">
+              SYS:ONLINE
+              <span class="ml-2" style="animation: blink 1.2s step-end infinite; display: inline-block;">█</span>
+            </div>
           </div>
         </nav>
 
@@ -41,8 +46,9 @@ export default define.page(function App({ Component, url, state }) {
           <Component />
         </main>
 
-        <footer class="border-t border-zinc-800 text-zinc-600 text-xs text-center py-4">
-          Lite Task · local SQLite · Fresh 2.2
+        <footer class="t-footer">
+          LITE-TASK &nbsp;·&nbsp; LOCAL:SQLITE &nbsp;·&nbsp; FRESH 2.2 &nbsp;·&nbsp;
+          <span style="color: var(--green-mute);">SYS_v0.1.0</span>
         </footer>
       </body>
     </html>

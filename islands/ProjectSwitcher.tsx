@@ -16,15 +16,12 @@ export default function ProjectSwitcher({ projects, currentProjectId }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
   const current = projects.find((p) => p.id === currentProjectId);
-  const label = current?.name ?? "Projects";
+  const label = current?.name?.toUpperCase() ?? "PROJECTS";
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     if (!open.value) return;
     function handleClickOutside(e: MouseEvent) {
-      if (!ref.current?.contains(e.target as Node)) {
-        close();
-      }
+      if (!ref.current?.contains(e.target as Node)) close();
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -46,34 +43,38 @@ export default function ProjectSwitcher({ projects, currentProjectId }: Props) {
 
   function handleCreateSubmit(e: SubmitEvent) {
     const form = e.target as HTMLFormElement;
-    const name = (
-      form.elements.namedItem("name") as HTMLInputElement
-    )?.value.trim();
+    const name = (form.elements.namedItem("name") as HTMLInputElement)?.value.trim();
     if (!name) {
       e.preventDefault();
       return;
     }
     loading.value = true;
-    // Let the native form POST through — server redirects to new project
   }
 
   return (
-    <div ref={ref} class="relative">
-      {/* Trigger button */}
+    <div ref={ref} style="position:relative;">
       <button
         type="button"
         onClick={toggle}
-        class={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors max-w-[200px] ${
-          open.value
-            ? "bg-zinc-700 text-white"
-            : "text-zinc-300 hover:text-white hover:bg-zinc-800"
-        }`}
+        style={`
+          font-family: 'VT323', monospace;
+          font-size: 1rem;
+          letter-spacing: .1em;
+          text-transform: uppercase;
+          background: ${open.value ? "rgba(0,255,65,.08)" : "transparent"};
+          border: 1px solid ${open.value ? "var(--b1)" : "var(--b0)"};
+          color: ${open.value ? "var(--green)" : "var(--green-dim)"};
+          padding: 4px 10px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          max-width: 200px;
+        `}
       >
-        <span class="truncate">{label}</span>
+        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{label}</span>
         <svg
-          class={`w-3 h-3 shrink-0 transition-transform ${
-            open.value ? "rotate-180" : ""
-          }`}
+          style={`width:10px; height:10px; flex-shrink:0; transition:transform 150ms; transform:${open.value ? "rotate(180deg)" : "none"};`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -83,9 +84,8 @@ export default function ProjectSwitcher({ projects, currentProjectId }: Props) {
         </svg>
       </button>
 
-      {/* Dropdown panel */}
       {open.value && (
-        <div class="absolute left-0 top-full mt-1.5 w-64 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-50">
+        <div class="t-dropdown">
           {panel.value === "list"
             ? (
               <ListPanel
@@ -108,11 +108,7 @@ export default function ProjectSwitcher({ projects, currentProjectId }: Props) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// List panel
-// ---------------------------------------------------------------------------
-
-function ListPanel({
+const ListPanel = ({
   projects,
   currentProjectId,
   onCreateClick,
@@ -122,61 +118,79 @@ function ListPanel({
   currentProjectId?: number;
   onCreateClick: () => void;
   onSelect: () => void;
-}) {
-  return (
-    <div>
-      {/* Project list */}
-      <div class="py-1 max-h-64 overflow-y-auto">
-        {projects.length === 0
-          ? (
-            <p class="px-4 py-3 text-xs text-zinc-500">No projects yet</p>
-          )
-          : projects.map((p) => {
-            const active = p.id === currentProjectId;
-            return (
-              <a
-                key={p.id}
-                href={`/projects/${p.id}`}
-                onClick={onSelect}
-                class={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
-                  active
-                    ? "bg-violet-500/15 text-violet-300"
-                    : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                }`}
-              >
-                {/* Check / dot indicator */}
-                <span class="w-4 shrink-0 text-center">
-                  {active ? "✓" : ""}
-                </span>
-                <span class="truncate flex-1">{p.name}</span>
-                <span class="text-xs text-zinc-600 shrink-0">
-                  {p.task_count ?? 0}
-                </span>
-              </a>
-            );
-          })}
-      </div>
-
-      {/* Divider + create button */}
-      <div class="border-t border-zinc-800">
-        <button
-          type="button"
-          onClick={onCreateClick}
-          class="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors text-left"
-        >
-          <span class="text-violet-400 font-bold text-base leading-none">+</span>
-          New Project
-        </button>
-      </div>
+}) => (
+  <div>
+    <div style="padding: 6px 12px; font-size:.7rem; letter-spacing:.2em; color: var(--green-faint); border-bottom: 1px solid var(--b0);">
+      SELECT_PROJECT
     </div>
-  );
-}
+    <div style="max-height: 260px; overflow-y: auto; padding: 4px 0;">
+      {projects.length === 0
+        ? (
+          <p style="padding: 12px 16px; font-size:.8rem; color: var(--green-faint); letter-spacing:.1em;">
+            NO_RECORDS
+          </p>
+        )
+        : projects.map((p) => {
+          const active = p.id === currentProjectId;
+          return (
+            <a
+              key={p.id}
+              href={`/projects/${p.id}`}
+              onClick={onSelect}
+              style={`
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 8px 16px;
+                font-family: 'Share Tech Mono', monospace;
+                font-size: .82rem;
+                text-decoration: none;
+                background: ${active ? "rgba(0,255,65,.08)" : "transparent"};
+                color: ${active ? "var(--green)" : "var(--green-dim)"};
+                transition: background 100ms, color 100ms;
+              `}
+            >
+              <span style="width:14px; text-align:center; font-family:'VT323',monospace; color:var(--green-dim);">
+                {active ? ">" : ""}
+              </span>
+              <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-transform:uppercase;">
+                {p.name}
+              </span>
+              <span style="font-size:.7rem; color: var(--green-faint);">{p.task_count ?? 0}</span>
+            </a>
+          );
+        })}
+    </div>
 
-// ---------------------------------------------------------------------------
-// Create panel (inline form)
-// ---------------------------------------------------------------------------
+    <div style="border-top: 1px solid var(--b0);">
+      <button
+        type="button"
+        onClick={onCreateClick}
+        style="
+          width: 100%;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 16px;
+          font-family: 'VT323', monospace;
+          font-size: .95rem;
+          letter-spacing: .1em;
+          text-transform: uppercase;
+          color: var(--green-mute);
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          text-align: left;
+        "
+      >
+        <span style="color: var(--green-dim); font-size:1.1rem;">+</span>
+        NEW_PROJECT
+      </button>
+    </div>
+  </div>
+);
 
-function CreatePanel({
+const CreatePanel = ({
   loading,
   onBack,
   onSubmit,
@@ -184,67 +198,52 @@ function CreatePanel({
   loading: boolean;
   onBack: () => void;
   onSubmit: (e: SubmitEvent) => void;
-}) {
-  return (
-    <div>
-      {/* Header */}
-      <div class="flex items-center gap-2 px-3 py-2.5 border-b border-zinc-800">
-        <button
-          type="button"
-          onClick={onBack}
-          class="text-zinc-500 hover:text-zinc-300 transition-colors p-0.5"
-          title="Back"
-        >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            stroke-width="2.5"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-        </button>
-        <span class="text-sm font-medium text-zinc-300">New Project</span>
-      </div>
-
-      {/* Form */}
-      <form
-        method="POST"
-        action="/projects"
-        onSubmit={onSubmit}
-        class="p-3 space-y-3"
+}) => (
+  <div>
+    <div style="display:flex; align-items:center; gap:8px; padding: 8px 12px; border-bottom: 1px solid var(--b0);">
+      <button
+        type="button"
+        onClick={onBack}
+        style="background:none; border:none; cursor:pointer; padding:2px 4px; color: var(--green-faint); font-family:'VT323',monospace; font-size:1.1rem;"
+        title="Back"
       >
-        <div>
-          <input
-            type="text"
-            name="name"
-            required
-            autofocus
-            placeholder="Project name…"
-            class="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
-          />
-        </div>
-        <div>
-          <textarea
-            name="description"
-            rows={2}
-            placeholder="Description (optional)"
-            class="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors resize-none"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={loading}
-          class="w-full py-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-60 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          {loading ? "Creating…" : "Create Project"}
-        </button>
-      </form>
+        ←
+      </button>
+      <span style="font-family:'VT323',monospace; font-size:.85rem; letter-spacing:.15em; color:var(--green-mute);">
+        INIT_PROJECT
+      </span>
     </div>
-  );
-}
+
+    <form
+      method="POST"
+      action="/projects"
+      onSubmit={onSubmit}
+      style="padding: 12px; display:flex; flex-direction:column; gap:10px;"
+    >
+      <input
+        type="text"
+        name="name"
+        required
+        autofocus
+        placeholder="project_name..."
+        class="t-input"
+        style="font-size:.85rem;"
+      />
+      <textarea
+        name="description"
+        rows={2}
+        placeholder="// description (optional)"
+        class="t-input"
+        style="font-size:.85rem;"
+      />
+      <button
+        type="submit"
+        disabled={loading}
+        class="t-btn t-btn-primary"
+        style="width:100%; justify-content:center;"
+      >
+        {loading ? "CREATING..." : "EXECUTE"}
+      </button>
+    </form>
+  </div>
+);

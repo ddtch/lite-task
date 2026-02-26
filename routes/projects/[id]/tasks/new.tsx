@@ -48,87 +48,79 @@ export default define.page<typeof handler>(function NewTaskPage({ data }) {
   const { project, error } = data;
 
   return (
-    <div class="max-w-2xl">
-      <div class="flex items-center gap-2 text-sm text-zinc-500 mb-6">
-        <a href="/projects" class="hover:text-zinc-300 transition-colors">
-          Projects
-        </a>
-        <span>/</span>
-        <a
-          href={`/projects/${project.id}`}
-          class="hover:text-zinc-300 transition-colors"
-        >
-          {project.name}
-        </a>
-        <span>/</span>
-        <span class="text-zinc-300">New Task</span>
+    <div style="max-width: 36rem;">
+      {/* Breadcrumb */}
+      <div class="t-breadcrumb mb-5" style="font-size:.82rem; letter-spacing:.15em;">
+        <a href="/projects">ROOT/PROJECTS</a>
+        <span style="color: var(--b1);">/</span>
+        <a href={`/projects/${project.id}`}>{project.name.toUpperCase()}</a>
+        <span style="color: var(--b1);">/</span>
+        <span style="color: var(--green-dim);">NEW_TASK</span>
       </div>
 
-      <h1 class="text-2xl font-bold text-white mb-8">New Task</h1>
+      <h1 class="t-h1 mb-7">
+        CREATE_TASK
+        <span class="t-cursor" />
+      </h1>
 
       {error && (
-        <div class="mb-6 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
-          {error}
+        <div class="t-error mb-5">
+          ERR: {error}
         </div>
       )}
 
-      <form method="POST" class="space-y-6">
-        <FormField label="Title" required>
+      <form method="POST" class="flex flex-col gap-5">
+        <div>
+          <label class="t-field-label">TITLE <span style="color:var(--red);">*</span></label>
           <input
             type="text"
             name="title"
             required
             autofocus
-            placeholder="Task title..."
-            class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
+            placeholder="task_title_here..."
+            class="t-input"
           />
-        </FormField>
+        </div>
 
-        <FormField label="Description">
+        <div>
+          <label class="t-field-label">DESCRIPTION</label>
           <textarea
             name="description"
             rows={4}
-            placeholder="Describe the task (optional)..."
-            class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors resize-none"
+            placeholder="// describe the task (optional)..."
+            class="t-input"
           />
-        </FormField>
-
-        <div class="grid grid-cols-2 gap-4">
-          <FormField label="Priority">
-            <select
-              name="priority"
-              class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
-            >
-              <option value="low">Low</option>
-              <option value="medium" selected>Medium</option>
-              <option value="high">High</option>
-            </select>
-          </FormField>
-
-          <FormField label="Status">
-            <select
-              name="status"
-              class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-colors"
-            >
-              <option value="todo" selected>To Do</option>
-              <option value="in_progress">In Progress</option>
-              <option value="done">Done</option>
-            </select>
-          </FormField>
         </div>
 
-        <div class="flex items-center gap-3 pt-2">
-          <button
-            type="submit"
-            class="px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-medium rounded-lg transition-colors"
-          >
-            Create Task
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="t-field-label">PRIORITY</label>
+            <select name="priority" class="t-input t-select">
+              <option value="low">LOW</option>
+              <option value="medium" selected>MEDIUM</option>
+              <option value="high">HIGH</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="t-field-label">STATUS</label>
+            <select name="status" class="t-input t-select">
+              <option value="todo" selected>TODO</option>
+              <option value="in_progress">ACTIVE</option>
+              <option value="done">DONE</option>
+            </select>
+          </div>
+        </div>
+
+        <div
+          class="pt-1"
+          style="border-top: 1px solid var(--b0); padding-top: 1rem; display:flex; gap: 10px;"
+        >
+          <button type="submit" class="t-btn t-btn-primary">
+            EXECUTE
           </button>
-          <a
-            href={`/projects/${project.id}`}
-            class="px-6 py-2.5 text-zinc-400 hover:text-zinc-200 border border-zinc-700 hover:border-zinc-600 rounded-lg transition-colors text-sm"
-          >
-            Cancel
+          <a href={`/projects/${project.id}`} class="t-btn">
+            ABORT
           </a>
         </div>
       </form>
@@ -136,20 +128,18 @@ export default define.page<typeof handler>(function NewTaskPage({ data }) {
   );
 });
 
-function FormField(
+const FormField = (
   { label, required, children }: {
     label: string;
     required?: boolean;
     children: unknown;
   },
-) {
-  return (
-    <div>
-      <label class="block text-sm font-medium text-zinc-300 mb-1.5">
-        {label}
-        {required && <span class="text-red-400 ml-1">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
+) => (
+  <div>
+    <label class="t-field-label">
+      {label}
+      {required && <span style="color:var(--red); margin-left:4px;">*</span>}
+    </label>
+    {children}
+  </div>
+);

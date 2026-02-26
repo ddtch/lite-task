@@ -1,6 +1,100 @@
 @import "tailwindcss";
 
-/* Custom utilities */
+@import url('https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap');
+
+/* ═══════════════════════════════════════════
+   TERMINAL THEME — 80s/90s HACKER AESTHETIC
+   ═══════════════════════════════════════════ */
+
+:root {
+  --bg0: #010a01;
+  --bg1: #061006;
+  --bg2: #0b1a0b;
+  --bg3: #112311;
+
+  --green:      #00ff41;
+  --green-d:    #00cc33;
+  --green-dim:  #2db84d;
+  --green-mute: #1a6630;
+  --green-faint:#0f3a1a;
+
+  --cyan:  #00f0ff;
+  --amber: #ffaa00;
+  --red:   #ff2b2b;
+
+  --b0: rgba(0,255,65,.10);
+  --b1: rgba(0,255,65,.25);
+  --b2: rgba(0,255,65,.60);
+
+  --glow-xs: 0 0 4px rgba(0,255,65,.35);
+  --glow-s:  0 0 8px rgba(0,255,65,.50);
+  --glow-m:  0 0 14px rgba(0,255,65,.55), 0 0 30px rgba(0,255,65,.18);
+  --glow-cyan:  0 0 8px rgba(0,240,255,.55);
+  --glow-amber: 0 0 8px rgba(255,170,0,.55);
+  --glow-red:   0 0 8px rgba(255,43,43,.50);
+}
+
+/* ── Reset & base ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  transition-property: color, background-color, border-color, opacity, box-shadow, text-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(.4, 0, .2, 1);
+}
+
+html, body {
+  background: var(--bg0);
+  color: var(--green);
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'VT323', 'Courier New', monospace;
+  letter-spacing: .06em;
+}
+
+a { color: inherit; }
+
+/* ── CRT scanlines ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,.13) 2px,
+    rgba(0,0,0,.13) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── Vignette ── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse 130% 110% at 50% 50%, transparent 50%, rgba(0,0,0,.65) 100%);
+  pointer-events: none;
+  z-index: 9998;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg1); }
+::-webkit-scrollbar-thumb { background: var(--green-faint); }
+::-webkit-scrollbar-thumb:hover { background: var(--green-mute); }
+
+/* ── Audio dark theme ── */
+audio {
+  filter: invert(1) hue-rotate(180deg);
+  opacity: .8;
+}
+
+/* ── Line clamp ── */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -8,15 +102,577 @@
   overflow: hidden;
 }
 
-/* Smooth transitions */
-* {
-  transition-property: color, background-color, border-color, opacity, box-shadow;
-  transition-duration: 150ms;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+/* ═══ KEYFRAMES ═══ */
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 
-/* Audio element dark theme */
-audio {
-  filter: invert(1) hue-rotate(180deg);
-  opacity: 0.8;
+@keyframes flicker {
+  0%, 19.9%, 22%, 62%, 64%, 100% { opacity: 1; }
+  20%, 21.9%, 63%, 63.9% { opacity: .7; }
+}
+
+@keyframes scan-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { text-shadow: var(--glow-xs); }
+  50%       { text-shadow: var(--glow-m); }
+}
+
+@keyframes t-slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══ LAYOUT ═══ */
+
+/* ── Nav ── */
+.t-nav {
+  background: rgba(6,16,6,.92);
+  border-bottom: 1px solid var(--b1);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  backdrop-filter: blur(8px);
+}
+
+.t-nav-logo {
+  font-family: 'VT323', monospace;
+  font-size: 1.4rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--green);
+  text-shadow: var(--glow-s);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  animation: flicker 8s linear infinite;
+}
+
+.t-nav-sep {
+  color: var(--green-faint);
+  font-family: 'VT323', monospace;
+  font-size: 1.2rem;
+  user-select: none;
+}
+
+/* ── Footer ── */
+.t-footer {
+  border-top: 1px solid var(--b0);
+  color: var(--green-faint);
+  font-size: .7rem;
+  text-align: center;
+  padding: .8rem 1rem;
+  letter-spacing: .25em;
+  text-transform: uppercase;
+}
+
+/* ═══ COMPONENTS ═══ */
+
+/* ── Card / Panel ── */
+.t-card {
+  background: var(--bg1);
+  border: 1px solid var(--b0);
+  position: relative;
+}
+
+.t-card-hover {
+  transition: background 150ms, border-color 150ms;
+}
+.t-card-hover:hover {
+  background: var(--bg2);
+  border-color: var(--b1);
+}
+
+/* ── Headings ── */
+.t-h1 {
+  font-family: 'VT323', monospace;
+  font-size: 2.4rem;
+  letter-spacing: .08em;
+  text-shadow: var(--glow-s);
+  line-height: 1.05;
+}
+
+.t-h2 {
+  font-family: 'VT323', monospace;
+  font-size: 1.65rem;
+  letter-spacing: .06em;
+  text-shadow: var(--glow-xs);
+}
+
+/* ── Section panel ── */
+.t-panel {
+  background: var(--bg1);
+  border: 1px solid var(--b0);
+  padding: 1.2rem;
+}
+
+.t-panel-title {
+  font-family: 'VT323', monospace;
+  font-size: .85rem;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--green-mute);
+  padding-bottom: .6rem;
+  margin-bottom: .85rem;
+  border-bottom: 1px solid var(--b0);
+}
+
+/* ── Buttons ── */
+.t-btn {
+  font-family: 'VT323', monospace;
+  font-size: 1.1rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  border: 1px solid var(--green-faint);
+  color: var(--green-dim);
+  background: transparent;
+  padding: 5px 18px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.t-btn:hover {
+  border-color: var(--green-d);
+  color: var(--green);
+  background: rgba(0,255,65,.07);
+  box-shadow: var(--glow-xs);
+}
+
+.t-btn-primary {
+  border-color: var(--green-d);
+  color: var(--green);
+  background: rgba(0,255,65,.10);
+  box-shadow: var(--glow-xs);
+}
+
+.t-btn-primary:hover {
+  background: rgba(0,255,65,.18);
+  box-shadow: var(--glow-s);
+}
+
+.t-btn-danger {
+  border-color: rgba(255,43,43,.28);
+  color: rgba(255,43,43,.7);
+}
+
+.t-btn-danger:hover {
+  border-color: var(--red);
+  color: var(--red);
+  background: rgba(255,43,43,.08);
+  box-shadow: var(--glow-red);
+}
+
+.t-btn:disabled,
+.t-btn-primary:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+/* ── Inputs ── */
+.t-input {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .95rem;
+  background: var(--bg0);
+  border: 1px solid var(--green-faint);
+  color: var(--green);
+  padding: 8px 12px;
+  outline: none;
+  width: 100%;
+  caret-color: var(--green);
+  resize: none;
+}
+
+.t-input::placeholder {
+  color: var(--green-faint);
+  opacity: .9;
+}
+
+.t-input:focus {
+  border-color: var(--green-d);
+  box-shadow: 0 0 0 1px var(--green-d), var(--glow-xs);
+}
+
+.t-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2300cc33' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px !important;
+  cursor: pointer;
+}
+
+/* ── Badges ── */
+.t-badge {
+  font-family: 'VT323', monospace;
+  font-size: .95rem;
+  letter-spacing: .06em;
+  padding: 1px 7px;
+  border: 1px solid;
+  display: inline-flex;
+  align-items: center;
+}
+
+.t-badge-green {
+  color: var(--green);
+  border-color: rgba(0,255,65,.3);
+  background: rgba(0,255,65,.07);
+}
+
+.t-badge-cyan {
+  color: var(--cyan);
+  border-color: rgba(0,240,255,.3);
+  background: rgba(0,240,255,.07);
+}
+
+.t-badge-amber {
+  color: var(--amber);
+  border-color: rgba(255,170,0,.3);
+  background: rgba(255,170,0,.07);
+}
+
+.t-badge-red {
+  color: var(--red);
+  border-color: rgba(255,43,43,.3);
+  background: rgba(255,43,43,.07);
+}
+
+.t-badge-muted {
+  color: var(--green-mute);
+  border-color: var(--b0);
+  background: var(--bg2);
+}
+
+/* ── Stat card ── */
+.t-stat {
+  background: var(--bg1);
+  border: 1px solid var(--b0);
+  text-align: center;
+  padding: 14px;
+}
+
+.t-stat-num {
+  font-family: 'VT323', monospace;
+  font-size: 2.8rem;
+  line-height: 1;
+  text-shadow: var(--glow-s);
+}
+
+.t-stat-label {
+  font-family: 'VT323', monospace;
+  font-size: .8rem;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--green-mute);
+  margin-top: 2px;
+}
+
+/* ── Task row ── */
+.t-row {
+  background: var(--bg1);
+  border: 1px solid var(--b0);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 13px 20px 13px 28px;
+  position: relative;
+}
+
+.t-row::before {
+  content: '▶';
+  position: absolute;
+  left: 8px;
+  color: var(--green-faint);
+  font-size: .75rem;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+.t-row:hover {
+  background: var(--bg2);
+  border-color: var(--b1);
+}
+
+.t-row:hover::before {
+  opacity: 1;
+}
+
+/* ── Kanban ── */
+.t-kan-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.t-kan-col-hd {
+  font-family: 'VT323', monospace;
+  font-size: 1rem;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px 6px;
+  border-bottom: 1px solid var(--b0);
+  margin-bottom: 4px;
+}
+
+.t-kan-empty {
+  border: 1px dashed var(--b0);
+  padding: 36px 12px;
+  text-align: center;
+  font-family: 'VT323', monospace;
+  font-size: .9rem;
+  letter-spacing: .12em;
+  color: var(--green-faint);
+  text-transform: uppercase;
+  transition: border-color 150ms, color 150ms;
+}
+
+.t-kan-empty.over {
+  border-color: var(--b1);
+  border-style: solid;
+  color: var(--green-mute);
+}
+
+.t-kan-card {
+  background: var(--bg1);
+  border: 1px solid var(--b0);
+  padding: 12px 14px;
+  cursor: grab;
+  position: relative;
+}
+
+.t-kan-card:hover {
+  background: var(--bg2);
+  border-color: var(--b1);
+  box-shadow: var(--glow-xs);
+}
+
+.t-kan-card:active {
+  cursor: grabbing;
+}
+
+.t-kan-card.dragging {
+  opacity: .38;
+  transform: scale(.97);
+}
+
+/* ── View toggle ── */
+.t-view-toggle {
+  background: var(--bg1);
+  border: 1px solid var(--b0);
+  padding: 3px;
+  display: flex;
+  gap: 2px;
+}
+
+.t-view-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  font-family: 'VT323', monospace;
+  font-size: 1rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--green-faint);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.t-view-btn:hover {
+  color: var(--green-dim);
+  background: rgba(0,255,65,.05);
+}
+
+.t-view-btn.active {
+  background: rgba(0,255,65,.12);
+  color: var(--green);
+}
+
+/* ── Status buttons ── */
+.t-status-btn {
+  font-family: 'VT323', monospace;
+  font-size: 1.05rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  border: 1px solid var(--green-faint);
+  color: var(--green-mute);
+  background: transparent;
+  padding: 4px 14px;
+  cursor: pointer;
+}
+
+.t-status-btn:hover {
+  border-color: var(--green-dim);
+  color: var(--green-dim);
+  background: rgba(0,255,65,.06);
+}
+
+.t-status-btn.active {
+  border-color: var(--green);
+  color: var(--bg0);
+  background: var(--green);
+  box-shadow: var(--glow-s);
+}
+
+/* ── Modal ── */
+.t-modal-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.85);
+  backdrop-filter: blur(3px);
+  z-index: 49;
+}
+
+.t-modal {
+  position: relative;
+  background: var(--bg1);
+  border: 1px solid var(--b1);
+  box-shadow: var(--glow-s), 0 30px 60px rgba(0,0,0,.9);
+  width: 100%;
+  max-width: 28rem;
+  padding: 1.75rem;
+  z-index: 50;
+  animation: t-slide-up 200ms ease-out;
+}
+
+/* ── Dropdown ── */
+.t-dropdown {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  width: 16rem;
+  background: var(--bg1);
+  border: 1px solid var(--b1);
+  box-shadow: var(--glow-xs), 0 20px 40px rgba(0,0,0,.75);
+  z-index: 50;
+  animation: scan-in 120ms ease-out;
+}
+
+/* ── Cursor blink ── */
+.t-cursor::after {
+  content: '█';
+  animation: blink 1s step-end infinite;
+  font-family: 'VT323', monospace;
+  color: var(--green);
+  font-size: .85em;
+  margin-left: 2px;
+}
+
+/* ── Breadcrumb ── */
+.t-breadcrumb {
+  font-family: 'VT323', monospace;
+  font-size: 1rem;
+  letter-spacing: .06em;
+  color: var(--green-faint);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.t-breadcrumb a:hover {
+  color: var(--green-dim);
+}
+
+/* ── Form field label ── */
+.t-field-label {
+  font-family: 'VT323', monospace;
+  font-size: .85rem;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--green-mute);
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* ── Error ── */
+.t-error {
+  border: 1px solid rgba(255,43,43,.35);
+  background: rgba(255,43,43,.06);
+  color: var(--red);
+  padding: 10px 14px;
+  font-size: .88rem;
+}
+
+/* ── Group header ── */
+.t-group-hd {
+  font-family: 'VT323', monospace;
+  font-size: .85rem;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+/* ── Project card ── */
+.t-proj-card {
+  background: var(--bg1);
+  border: 1px solid var(--b0);
+  padding: 1.2rem;
+  display: block;
+  position: relative;
+  overflow: hidden;
+}
+
+.t-proj-card::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border: 1px solid transparent;
+  pointer-events: none;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+
+.t-proj-card:hover::after {
+  border-color: var(--b2);
+  box-shadow: inset 0 0 30px rgba(0,255,65,.04);
+}
+
+.t-proj-card:hover {
+  background: var(--bg2);
+}
+
+/* ── Empty state ── */
+.t-empty {
+  text-align: center;
+  padding: 5rem 2rem;
+  border: 1px dashed var(--b0);
+}
+
+.t-empty-icon {
+  font-family: 'VT323', monospace;
+  font-size: 3rem;
+  color: var(--green-faint);
+  text-shadow: var(--glow-xs);
+  margin-bottom: 1rem;
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* ── Back link ── */
+.t-back {
+  font-family: 'VT323', monospace;
+  font-size: 1rem;
+  letter-spacing: .1em;
+  color: var(--green-faint);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.t-back:hover {
+  color: var(--green-dim);
 }
