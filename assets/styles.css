@@ -662,6 +662,32 @@ audio {
   animation: glow-pulse 3s ease-in-out infinite;
 }
 
+/* ── Sticky back button ── */
+.t-back-sticky {
+  position: fixed;
+  left: 1.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 1px solid var(--b1);
+  background: var(--bg0);
+  color: var(--green-dim);
+  font-family: 'VT323', monospace;
+  font-size: 1.4rem;
+  text-decoration: none;
+  transition: border-color .15s, color .15s;
+}
+
+.t-back-sticky:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
 /* ── Back link ── */
 .t-back {
   font-family: 'VT323', monospace;

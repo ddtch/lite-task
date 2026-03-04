@@ -78,6 +78,14 @@ export default define.page<typeof handler>(function TaskDetailPage({ data }) {
   const videos = attachments.filter((a) => a.type === "video");
 
   return (
+    <>
+      <a
+        href={`/projects/${project.id}`}
+        class="t-back-sticky"
+        title="Back to project"
+      >
+        ←
+      </a>
     <div style="max-width: 48rem;">
       {/* Breadcrumb */}
       <div class="t-breadcrumb mb-5" style="font-size:.82rem; letter-spacing:.14em;">
@@ -107,17 +115,27 @@ export default define.page<typeof handler>(function TaskDetailPage({ data }) {
             </span>
           </div>
         </div>
-        <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+        <div style="display:flex; flex-direction:column; align-items:stretch; gap:8px; flex-shrink:0;">
+          <div style="display:flex; gap:8px;">
+            <a
+              href={`/projects/${project.id}/tasks/${task.id}/edit`}
+              class="t-btn"
+              style="flex:1; text-align:center;"
+            >
+              EDIT
+            </a>
+            <form method="POST">
+              <input type="hidden" name="_action" value="delete" />
+              <button type="submit" class="t-btn t-btn-danger">DEL</button>
+            </form>
+          </div>
           <a
-            href={`/projects/${project.id}/tasks/${task.id}/edit`}
+            href={`/projects/${project.id}/tasks/new`}
             class="t-btn"
+            style="text-align:center; color:var(--cyan); border-color:var(--cyan); display:inline-block;"
           >
-            EDIT
+            NEW TASK
           </a>
-          <form method="POST">
-            <input type="hidden" name="_action" value="delete" />
-            <button type="submit" class="t-btn t-btn-danger">DEL</button>
-          </form>
         </div>
       </div>
 
@@ -224,5 +242,6 @@ export default define.page<typeof handler>(function TaskDetailPage({ data }) {
         <VoiceRecorder taskId={task.id} />
       </div>
     </div>
+    </>
   );
 });

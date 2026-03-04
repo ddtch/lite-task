@@ -3,6 +3,7 @@
   "tasks": {
     "check": "deno fmt --check . && deno lint . && deno check",
     "dev": "vite",
+    "local": "vite --port 8012",
     "build": "vite build",
     "start": "deno serve -A --port=8011 _fresh/server.js",
     "preview": "deno task build && deno task start",
