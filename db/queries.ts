@@ -34,6 +34,7 @@ export interface Project {
   created_at: string;
   updated_at: string;
   task_count?: number;
+  open_task_count?: number;
 }
 
 export interface Task {
@@ -66,7 +67,8 @@ export async function listProjects(): Promise<Project[]> {
   const db = await getDb();
   return (await db.all<Project>(`
     SELECT p.*,
-           COUNT(t.id) AS task_count
+           COUNT(t.id) AS task_count,
+           COUNT(CASE WHEN t.status != 'done' THEN 1 END) AS open_task_count
     FROM projects p
     LEFT JOIN tasks t ON t.project_id = p.id
     GROUP BY p.id

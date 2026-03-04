@@ -14,7 +14,8 @@ Designed to also act as an **MCP server** so Claude (or Claude Desktop) can read
 - **Attachments** — drag & drop images, upload audio files (MP3, M4A), upload video files (MP4), or record voice memos per task
 - **Image lightbox** — click any image attachment to view it full-screen with prev/next navigation
 - **Clickable links** — URLs in task descriptions are automatically rendered as links
-- **Calendar** — interactive calendar (FullCalendar) with events, notes, and reminders; month/week/day/year views; per-day event panel; stats bar
+- **Calendar** — interactive calendar (FullCalendar) with events, notes, and reminders; month/week/day/year views; per-day event panel with inline create/edit/delete; stats bar
+- **Event notifications** — Telegram message 10 min before timed events; optional phone call (Retell AI) 5 min before
 - **SQLite or Turso** — local SQLite by default; switch to Turso cloud database via env vars
 - **REST API** — clean JSON API for programmatic access
 - **MCP server** — two modes: direct DB (local) or HTTP client (remote/Docker)
@@ -104,7 +105,7 @@ docker compose up -d
 # → http://localhost:8011
 ```
 
-Both services (`lite-task` and `bot`) read from `.env` automatically via Docker's `env_file` directive. If `TURSO_DB_URL` and `TURSO_API_KEY` are present the app uses Turso; otherwise it uses local SQLite.
+All three services (`lite-task`, `bot`, and `event-scheduler`) read from `.env` automatically via Docker's `env_file` directive. If `TURSO_DB_URL` and `TURSO_API_KEY` are present the app uses Turso; otherwise it uses local SQLite.
 
 **Persistent data** is stored under `./data/` on the host:
 
@@ -319,9 +320,9 @@ When lite-task and the AI tool run on the same machine, this mode skips HTTP ent
 | `delete_task`    | Delete a task                                             |
 | `get_attachment` | Download an attachment image and return it as base64      |
 | `list_events`   | List calendar events — filter by `month`, `project_id`    |
-| `create_event`  | Create a calendar event, note, or reminder                |
+| `create_event`  | Create a calendar event, note, or reminder (+ `notify_call` for phone reminder) |
 | `get_event`     | Get a calendar event by ID                                |
-| `update_event`  | Update event title, date, time, type, or description      |
+| `update_event`  | Update event fields including `notify_call`               |
 | `delete_event`  | Delete a calendar event                                   |
 
 
@@ -422,7 +423,7 @@ deno task bot
 docker compose up -d
 ```
 
-The `bot` service starts automatically after the `lite-task` service passes its health check. Both services share the `./data` volume, so `bot-messages.db` persists across restarts.
+The `bot` and `event-scheduler` services start automatically after the `lite-task` service passes its health check. All services share the `./data` volume, so databases persist across restarts.
 
 ### AI provider
 
@@ -609,13 +610,15 @@ DELETE /api/tasks/:id         → delete task
 
 ```
 GET    /api/events            → list events  ?month=YYYY-MM&project_id=
-POST   /api/events            → create event  { title, event_date, description?, event_time?, type?, project_id? }
+POST   /api/events            → create event  { title, event_date, description?, event_time?, type?, project_id?, notify_call? }
 GET    /api/events/:id        → get event
-PUT    /api/events/:id        → update event  { title?, description?, event_date?, event_time?, type?, project_id? }
+PUT    /api/events/:id        → update event  { title?, description?, event_date?, event_time?, type?, project_id?, notify_call? }
 DELETE /api/events/:id        → delete event
 ```
 
 Event types: `event`, `note`, `reminder`.
+
+`notify_call` (boolean) — when `true` and `event_time` is set, the event scheduler will trigger a phone call 5 minutes before the event. Timed events always get a Telegram notification 10 minutes before, regardless of this flag.
 
 ### Attachments
 

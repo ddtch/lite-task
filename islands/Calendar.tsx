@@ -12,6 +12,13 @@ const TYPE_COLORS: Record<string, { bg: string; border: string; badge: string; l
   reminder: { bg: "rgba(255,170,0,.18)", border: "#ffaa00", badge: "t-badge-amber", label: "REMINDER" },
 };
 
+function formatTime12h(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  const suffix = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 || 12;
+  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
+}
+
 const VIEW_LABELS: Record<string, string> = {
   dayGridMonth: "THIS MONTH",
   multiMonthYear: "THIS YEAR",
@@ -24,7 +31,7 @@ function toFcEvents(events: CalendarEvent[]) {
     const tc = TYPE_COLORS[ev.type] ?? TYPE_COLORS.event;
     return {
       id: String(ev.id),
-      title: ev.event_time ? `${ev.event_time} ${ev.title}` : ev.title,
+      title: ev.title,
       start: ev.event_time ? `${ev.event_date}T${ev.event_time}` : ev.event_date,
       allDay: !ev.event_time,
       backgroundColor: tc.bg,
@@ -43,6 +50,7 @@ export default function Calendar({ events: initialEvents }: Props) {
   const selectedEvents = useSignal<CalendarEvent[]>([]);
   const allEvents = useRef<CalendarEvent[]>(initialEvents);
   const showForm = useSignal(false);
+  const editingEvent = useSignal<CalendarEvent | null>(null);
   const ready = useSignal(false);
   const error = useSignal("");
   const viewType = useSignal("dayGridMonth");
@@ -117,6 +125,7 @@ export default function Calendar({ events: initialEvents }: Props) {
           },
           firstDay: 1,
           height: "auto",
+          eventTimeFormat: { hour: "numeric", minute: "2-digit", hour12: true },
           events: toFcEvents(initialEvents),
           editable: false,
           selectable: true,
@@ -127,6 +136,7 @@ export default function Calendar({ events: initialEvents }: Props) {
             const dateStr = info.dateStr.slice(0, 10);
             selectedDate.value = dateStr;
             showForm.value = false;
+            editingEvent.value = null;
             updateSelectedEvents(dateStr);
           },
           // deno-lint-ignore no-explicit-any
@@ -136,6 +146,7 @@ export default function Calendar({ events: initialEvents }: Props) {
             const dateStr = info.event.startStr.slice(0, 10);
             selectedDate.value = dateStr;
             showForm.value = false;
+            editingEvent.value = null;
             updateSelectedEvents(dateStr);
           },
           // deno-lint-ignore no-explicit-any
@@ -234,12 +245,7 @@ export default function Calendar({ events: initialEvents }: Props) {
         }),
       });
       if (res.ok) {
-        formTitle.value = "";
-        formDesc.value = "";
-        formType.value = "event";
-        formTime.value = "";
-        formNotifyCall.value = false;
-        showForm.value = false;
+        resetForm();
         await refetchCurrent();
       }
     } finally {
@@ -250,7 +256,55 @@ export default function Calendar({ events: initialEvents }: Props) {
   async function handleDelete(id: number) {
     const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
     if (res.ok) {
+      editingEvent.value = null;
+      showForm.value = false;
       await refetchCurrent();
+    }
+  }
+
+  function startEdit(ev: CalendarEvent) {
+    formTitle.value = ev.title;
+    formDesc.value = ev.description;
+    formType.value = ev.type;
+    formTime.value = ev.event_time ?? "";
+    formNotifyCall.value = ev.notify_call === 1;
+    editingEvent.value = ev;
+    showForm.value = true;
+  }
+
+  function resetForm() {
+    formTitle.value = "";
+    formDesc.value = "";
+    formType.value = "event";
+    formTime.value = "";
+    formNotifyCall.value = false;
+    editingEvent.value = null;
+    showForm.value = false;
+  }
+
+  async function handleUpdate() {
+    const ev = editingEvent.value;
+    if (!ev || !formTitle.value.trim()) return;
+    formSaving.value = true;
+    try {
+      const res = await fetch(`/api/events/${ev.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: formTitle.value.trim(),
+          description: formDesc.value.trim(),
+          event_date: selectedDate.value,
+          event_time: formTime.value || null,
+          type: formType.value,
+          notify_call: formNotifyCall.value,
+        }),
+      });
+      if (res.ok) {
+        resetForm();
+        await refetchCurrent();
+      }
+    } finally {
+      formSaving.value = false;
     }
   }
 
@@ -290,7 +344,14 @@ export default function Calendar({ events: initialEvents }: Props) {
                 <div class="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => { showForm.value = !showForm.value; }}
+                    onClick={() => {
+                      if (showForm.value && !editingEvent.value) {
+                        showForm.value = false;
+                      } else {
+                        resetForm();
+                        showForm.value = true;
+                      }
+                    }}
                     class="t-btn t-btn-primary"
                     style="padding: 2px 10px; font-size:.9rem;"
                   >
@@ -298,7 +359,7 @@ export default function Calendar({ events: initialEvents }: Props) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { selectedDate.value = null; showForm.value = false; }}
+                    onClick={() => { selectedDate.value = null; resetForm(); }}
                     class="t-btn"
                     style="padding: 2px 8px; font-size:.9rem;"
                   >
@@ -311,7 +372,7 @@ export default function Calendar({ events: initialEvents }: Props) {
               {showForm.value && (
                 <div style="border: 1px solid var(--b0); background: var(--bg2); padding: .7rem; margin-bottom: .75rem;">
                   <div style="font-family:'VT323',monospace; font-size:.75rem; letter-spacing:.2em; color:var(--green-faint); margin-bottom:.5rem; border-bottom: 1px solid var(--b0); padding-bottom:.3rem;">
-                    NEW_ENTRY
+                    {editingEvent.value ? "EDIT_ENTRY" : "NEW_ENTRY"}
                   </div>
                   <div class="flex flex-col gap-2">
                     <input
@@ -366,16 +427,16 @@ export default function Calendar({ events: initialEvents }: Props) {
                     <div class="flex gap-2">
                       <button
                         type="button"
-                        onClick={handleCreate}
+                        onClick={editingEvent.value ? handleUpdate : handleCreate}
                         disabled={formSaving.value || !formTitle.value.trim()}
                         class="t-btn t-btn-primary flex-1"
                         style="font-size:.9rem;"
                       >
-                        {formSaving.value ? "..." : "CREATE"}
+                        {formSaving.value ? "..." : editingEvent.value ? "SAVE" : "CREATE"}
                       </button>
                       <button
                         type="button"
-                        onClick={() => (showForm.value = false)}
+                        onClick={resetForm}
                         class="t-btn"
                         style="font-size:.9rem;"
                       >
@@ -410,7 +471,7 @@ export default function Calendar({ events: initialEvents }: Props) {
                             </span>
                             {ev.event_time && (
                               <span style="font-size:.72rem; color:var(--green-mute); font-family:'VT323',monospace;">
-                                {ev.event_time}
+                                {formatTime12h(ev.event_time)}
                               </span>
                             )}
                             {ev.notify_call === 1 && (
@@ -419,14 +480,23 @@ export default function Calendar({ events: initialEvents }: Props) {
                               </span>
                             )}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(ev.id)}
-                            class="cal-delete-btn"
-                            style="font-family:'VT323',monospace; font-size:1rem; color:var(--red); opacity:.5; background:none; border:none; cursor:pointer; padding:2px 4px; line-height:1;"
-                          >
-                            ×
-                          </button>
+                          <div class="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => startEdit(ev)}
+                              style="font-family:'VT323',monospace; font-size:.75rem; color:var(--green-mute); opacity:.6; background:none; border:none; cursor:pointer; padding:2px 4px; line-height:1;"
+                            >
+                              EDIT
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(ev.id)}
+                              class="cal-delete-btn"
+                              style="font-family:'VT323',monospace; font-size:1rem; color:var(--red); opacity:.5; background:none; border:none; cursor:pointer; padding:2px 4px; line-height:1;"
+                            >
+                              ×
+                            </button>
+                          </div>
                         </div>
                         <p class="truncate mt-1" style="font-size:.85rem; color:var(--green-dim);">
                           {ev.title}

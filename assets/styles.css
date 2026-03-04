@@ -16,13 +16,13 @@
   --green-d:    #00cc33;
   --green-dim:  #2db84d;
   --green-mute: #1a6630;
-  --green-faint:#0f3a1a;
+  --green-faint:#0f4f1f;
 
   --cyan:  #00f0ff;
   --amber: #ffaa00;
   --red:   #ff2b2b;
 
-  --b0: rgba(0,255,65,.10);
+  --b0: rgba(0,255,65,.15);
   --b1: rgba(0,255,65,.25);
   --b2: rgba(0,255,65,.60);
 

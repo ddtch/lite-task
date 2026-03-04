@@ -94,9 +94,16 @@ const ProjectCard = ({ project }: { project: Project }) => (
       <h2 class="t-h2 truncate" style="font-size:1.35rem;">
         {project.name}
       </h2>
-      <span class="t-badge t-badge-muted shrink-0" style="margin-top:3px;">
-        {project.task_count ?? 0}
-      </span>
+      <div class="flex flex-col items-end gap-1 shrink-0" style="margin-top:3px;">
+        {(project.open_task_count ?? 0) > 0 && (
+          <span class="t-badge shrink-0" style="background:rgba(255,60,60,.18); border-color:#ff3c3c; color:#ff3c3c;">
+            {project.open_task_count}
+          </span>
+        )}
+        <span class="t-badge t-badge-muted shrink-0">
+          {project.task_count ?? 0}
+        </span>
+      </div>
     </div>
     {project.description && (
       <p class="line-clamp-2 mb-3" style="font-size:.82rem; color: var(--green-mute); line-height:1.5;">
