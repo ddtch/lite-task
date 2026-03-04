@@ -8,4 +8,7 @@ export default defineConfig({
     port: 8011,
     allowedHosts: true,
   },
+  resolve: {
+    dedupe: ["preact", "preact/hooks", "preact/compat"],
+  },
 });

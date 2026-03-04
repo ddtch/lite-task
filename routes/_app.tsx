@@ -35,13 +35,22 @@ export default define.page(function App({ Component, url, state }) {
               currentProjectId={currentProjectId}
             />
 
-            <a
-              href="/calls"
-              class="ml-auto text-xs font-mono hidden sm:flex items-center gap-2 hover:opacity-80 transition-opacity"
-              style={`color: ${url.pathname === "/calls" ? "var(--cyan)" : "var(--green-faint)"}; letter-spacing: .14em;`}
-            >
-              ◉ VOICE
-            </a>
+            <div class="ml-auto hidden sm:flex items-center gap-4">
+              <a
+                href="/calendar"
+                class="text-xs font-mono flex items-center gap-2 hover:opacity-80 transition-opacity"
+                style={`color: ${url.pathname === "/calendar" ? "var(--cyan)" : "var(--green-faint)"}; letter-spacing: .14em;`}
+              >
+                ◈ CALENDAR
+              </a>
+              <a
+                href="/calls"
+                class="text-xs font-mono flex items-center gap-2 hover:opacity-80 transition-opacity"
+                style={`color: ${url.pathname === "/calls" ? "var(--cyan)" : "var(--green-faint)"}; letter-spacing: .14em;`}
+              >
+                ◉ VOICE
+              </a>
+            </div>
           </div>
         </nav>
 

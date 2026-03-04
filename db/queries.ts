@@ -392,3 +392,132 @@ export async function listDueReminders(): Promise<Reminder[]> {
     "SELECT * FROM reminders WHERE status = 'pending' AND remind_at <= datetime('now')",
   );
 }
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+
+export interface CalendarEvent {
+  id: number;
+  title: string;
+  description: string;
+  event_date: string;
+  event_time: string | null;
+  type: "event" | "note" | "reminder";
+  project_id: number | null;
+  notify_call: number;
+  notified_telegram: number;
+  notified_call: number;
+  created_at: string;
+}
+
+export async function listEvents(opts?: {
+  month?: string;
+  projectId?: number;
+}): Promise<CalendarEvent[]> {
+  const db = await getDb();
+  const conditions: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (opts?.month) {
+    conditions.push("event_date LIKE ?");
+    params.push(`${opts.month}%`);
+  }
+  if (opts?.projectId) {
+    conditions.push("project_id = ?");
+    params.push(opts.projectId);
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  return await db.all<CalendarEvent>(
+    `SELECT * FROM events ${where} ORDER BY event_date ASC, event_time ASC`,
+    params,
+  );
+}
+
+export async function getEvent(id: number): Promise<CalendarEvent | undefined> {
+  const db = await getDb();
+  return await db.get<CalendarEvent>("SELECT * FROM events WHERE id = ?", [id]);
+}
+
+export async function createEvent(fields: {
+  title: string;
+  description?: string;
+  event_date: string;
+  event_time?: string | null;
+  type?: CalendarEvent["type"];
+  project_id?: number | null;
+  notify_call?: boolean;
+}): Promise<number> {
+  const db = await getDb();
+  return await db.run(
+    `INSERT INTO events (title, description, event_date, event_time, type, project_id, notify_call)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      fields.title,
+      fields.description ?? "",
+      fields.event_date,
+      fields.event_time ?? null,
+      fields.type ?? "event",
+      fields.project_id ?? null,
+      fields.notify_call ? 1 : 0,
+    ],
+  );
+}
+
+export async function updateEvent(
+  id: number,
+  fields: Partial<Pick<CalendarEvent, "title" | "description" | "event_date" | "event_time" | "type" | "project_id" | "notify_call">>,
+): Promise<void> {
+  const db = await getDb();
+  const sets: string[] = [];
+  const values: unknown[] = [];
+
+  for (const [key, val] of Object.entries(fields)) {
+    if (val !== undefined) {
+      sets.push(`${key} = ?`);
+      values.push(val);
+    }
+  }
+  if (sets.length === 0) return;
+  values.push(id);
+  await db.run(`UPDATE events SET ${sets.join(", ")} WHERE id = ?`, values);
+}
+
+export async function deleteEvent(id: number): Promise<void> {
+  const db = await getDb();
+  await db.run("DELETE FROM events WHERE id = ?", [id]);
+}
+
+export async function listDueEventsTelegram(): Promise<CalendarEvent[]> {
+  const db = await getDb();
+  return await db.all<CalendarEvent>(
+    `SELECT * FROM events
+     WHERE event_time IS NOT NULL
+       AND notified_telegram = 0
+       AND datetime(event_date || 'T' || event_time) <= datetime('now', '+10 minutes')
+       AND datetime(event_date || 'T' || event_time) >= datetime('now')`,
+  );
+}
+
+export async function listDueEventsCall(): Promise<CalendarEvent[]> {
+  const db = await getDb();
+  return await db.all<CalendarEvent>(
+    `SELECT * FROM events
+     WHERE event_time IS NOT NULL
+       AND notify_call = 1
+       AND notified_call = 0
+       AND datetime(event_date || 'T' || event_time) <= datetime('now', '+5 minutes')
+       AND datetime(event_date || 'T' || event_time) >= datetime('now')`,
+  );
+}
+
+export async function markEventNotifiedTelegram(id: number): Promise<void> {
+  const db = await getDb();
+  await db.run("UPDATE events SET notified_telegram = 1 WHERE id = ?", [id]);
+}
+
+export async function markEventNotifiedCall(id: number): Promise<void> {
+  const db = await getDb();
+  await db.run("UPDATE events SET notified_call = 1 WHERE id = ?", [id]);
+}

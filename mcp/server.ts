@@ -25,15 +25,20 @@ import {
 // We import queries directly — the db file is resolved relative to cwd
 // Make sure to run `deno task mcp` from the task-light directory.
 import {
+  createEvent,
   createProject,
   createTask,
+  deleteEvent,
   deleteProject,
   deleteTask,
+  getEvent,
   getProject,
   getTask,
   listAllTasks,
   listAttachments,
+  listEvents,
   listProjects,
+  updateEvent,
   updateProject,
   updateTask,
 } from "../db/queries.ts";
@@ -196,6 +201,99 @@ const TOOLS = [
         },
       },
       required: ["filename"],
+    },
+  },
+  {
+    name: "list_events",
+    description:
+      "List calendar events. Optionally filter by month (YYYY-MM) or project_id.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        month: {
+          type: "string",
+          description: "Filter by month, e.g. '2026-03' (optional)",
+        },
+        project_id: {
+          type: "number",
+          description: "Filter by project ID (optional)",
+        },
+      },
+    },
+  },
+  {
+    name: "create_event",
+    description:
+      "Create a calendar event, note, or reminder. Timed events get a Telegram notification 10 min before. Set notify_call to also get a phone call 5 min before.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Event title (required)" },
+        description: { type: "string", description: "Optional description" },
+        event_date: {
+          type: "string",
+          description: "Date in YYYY-MM-DD format (required)",
+        },
+        event_time: {
+          type: "string",
+          description: "Time in HH:MM format (optional)",
+        },
+        type: {
+          type: "string",
+          enum: ["event", "note", "reminder"],
+          description: "Type (default: event)",
+        },
+        project_id: {
+          type: "number",
+          description: "Link to a project (optional)",
+        },
+        notify_call: {
+          type: "boolean",
+          description: "Enable phone call reminder 5 min before event (requires event_time)",
+        },
+      },
+      required: ["title", "event_date"],
+    },
+  },
+  {
+    name: "get_event",
+    description: "Get a calendar event by ID.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "number", description: "Event ID" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "update_event",
+    description:
+      "Update a calendar event. Only provided fields are updated.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "number", description: "Event ID (required)" },
+        title: { type: "string" },
+        description: { type: "string" },
+        event_date: { type: "string", description: "YYYY-MM-DD" },
+        event_time: { type: "string", description: "HH:MM or null to clear" },
+        type: { type: "string", enum: ["event", "note", "reminder"] },
+        project_id: { type: "number", description: "Project ID or null to unlink" },
+        notify_call: { type: "boolean", description: "Enable/disable phone call reminder" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "delete_event",
+    description: "Delete a calendar event.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "number", description: "Event ID" },
+      },
+      required: ["id"],
     },
   },
 ] as const;
@@ -385,6 +483,68 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
             mimeType: mimeFromFilename(filename),
           }],
         };
+      }
+
+      case "list_events": {
+        const events = await listEvents({
+          month: a.month ? String(a.month) : undefined,
+          projectId: a.project_id ? Number(a.project_id) : undefined,
+        });
+        return { content: [{ type: "text", text: JSON.stringify(events, null, 2) }] };
+      }
+
+      case "create_event": {
+        const title = String(a.title ?? "").trim();
+        if (!title) throw new Error("title is required");
+        const eventDate = String(a.event_date ?? "").trim();
+        if (!eventDate) throw new Error("event_date is required");
+        const validTypes = ["event", "note", "reminder"];
+        const id = await createEvent({
+          title,
+          description: String(a.description ?? "").trim(),
+          event_date: eventDate,
+          event_time: a.event_time ? String(a.event_time) : null,
+          type: validTypes.includes(String(a.type))
+            ? (String(a.type) as "event" | "note" | "reminder")
+            : "event",
+          project_id: a.project_id ? Number(a.project_id) : null,
+          notify_call: Boolean(a.notify_call),
+        });
+        return {
+          content: [{ type: "text", text: JSON.stringify({ id, title, event_date: eventDate }, null, 2) }],
+        };
+      }
+
+      case "get_event": {
+        const id = Number(a.id);
+        const event = await getEvent(id);
+        if (!event) throw new Error(`Event ${id} not found`);
+        return { content: [{ type: "text", text: JSON.stringify(event, null, 2) }] };
+      }
+
+      case "update_event": {
+        const id = Number(a.id);
+        if (!await getEvent(id)) throw new Error(`Event ${id} not found`);
+        const validTypes = ["event", "note", "reminder"];
+        await updateEvent(id, {
+          ...(a.title !== undefined ? { title: String(a.title).trim() } : {}),
+          ...(a.description !== undefined ? { description: String(a.description).trim() } : {}),
+          ...(a.event_date !== undefined ? { event_date: String(a.event_date) } : {}),
+          ...(a.event_time !== undefined ? { event_time: a.event_time === null ? null : String(a.event_time) } : {}),
+          ...(a.type && validTypes.includes(String(a.type))
+            ? { type: String(a.type) as "event" | "note" | "reminder" }
+            : {}),
+          ...(a.project_id !== undefined ? { project_id: a.project_id === null ? null : Number(a.project_id) } : {}),
+          ...(a.notify_call !== undefined ? { notify_call: a.notify_call ? 1 : 0 } : {}),
+        });
+        return { content: [{ type: "text", text: JSON.stringify(await getEvent(id), null, 2) }] };
+      }
+
+      case "delete_event": {
+        const id = Number(a.id);
+        if (!await getEvent(id)) throw new Error(`Event ${id} not found`);
+        await deleteEvent(id);
+        return { content: [{ type: "text", text: `Event ${id} deleted.` }] };
       }
 
       default:

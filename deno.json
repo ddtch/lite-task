@@ -14,7 +14,8 @@
     "bot": "deno run -A --env-file=.env bot/main.ts",
     "calls:setup": "deno run -A --env-file=.env calls/setup.ts",
     "calls:update-url": "deno run -A --env-file=.env calls/update-url.ts",
-    "calls:scheduler": "deno run -A --env-file=.env calls/scheduler.ts"
+    "calls:scheduler": "deno run -A --env-file=.env calls/scheduler.ts",
+    "events:scheduler": "deno run -A --env-file=.env calls/event-scheduler.ts"
   },
   "lint": {
     "rules": {
@@ -29,6 +30,11 @@
   ],
   "imports": {
     "@/": "./",
+    "@fullcalendar/core": "npm:@fullcalendar/core@^6.1.20",
+    "@fullcalendar/daygrid": "npm:@fullcalendar/daygrid@^6.1.20",
+    "@fullcalendar/timegrid": "npm:@fullcalendar/timegrid@^6.1.20",
+    "@fullcalendar/interaction": "npm:@fullcalendar/interaction@^6.1.20",
+    "@fullcalendar/multimonth": "npm:@fullcalendar/multimonth@^6.1.20",
     "@types/node": "npm:@types/node@^25.3.0",
     "fresh": "jsr:@fresh/core@^2.2.0",
     "preact": "npm:preact@^10.27.2",

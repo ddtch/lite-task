@@ -39,3 +39,15 @@ services:
       lite-task:
         condition: service_healthy
     restart: unless-stopped
+
+  event-scheduler:
+    build: .
+    command: ["deno", "run", "-A", "calls/event-scheduler.ts"]
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      lite-task:
+        condition: service_healthy
+    restart: unless-stopped

@@ -1,12 +1,18 @@
 import { page } from "fresh";
 import { define } from "../../utils.ts";
-import { createProject, listProjects, type Project } from "../../db/queries.ts";
+import { createProject, listEvents, listProjects, type Project } from "../../db/queries.ts";
 import ProjectCreateModal from "../../islands/ProjectCreateModal.tsx";
+import Calendar from "../../islands/Calendar.tsx";
 
 export const handler = define.handlers({
   async GET(ctx) {
-    const projects = await listProjects();
-    return page({ projects });
+    const now = new Date();
+    const month = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, "0")}`;
+    const [projects, events] = await Promise.all([
+      listProjects(),
+      listEvents({ month }),
+    ]);
+    return page({ projects, events });
   },
 
   async POST(ctx) {
@@ -65,6 +71,19 @@ export default define.page<typeof handler>(function ProjectsPage({ data }) {
             {projects.map((p) => <ProjectCard project={p} key={p.id} />)}
           </div>
         )}
+
+      {/* Calendar section */}
+      <div class="mt-12">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="t-h2" style="font-size:1.5rem;">
+            CALENDAR
+          </h2>
+          <a href="/calendar" class="t-btn" style="font-size:.9rem; padding: 3px 12px;">
+            FULL VIEW →
+          </a>
+        </div>
+        <Calendar events={data.events} />
+      </div>
     </div>
   );
 });

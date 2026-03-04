@@ -208,6 +208,99 @@ const TOOLS = [
       required: ["filename"],
     },
   },
+  {
+    name: "list_events",
+    description:
+      "List calendar events. Optionally filter by month (YYYY-MM) or project_id.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        month: {
+          type: "string",
+          description: "Filter by month, e.g. '2026-03' (optional)",
+        },
+        project_id: {
+          type: "number",
+          description: "Filter by project ID (optional)",
+        },
+      },
+    },
+  },
+  {
+    name: "create_event",
+    description:
+      "Create a calendar event, note, or reminder. Timed events get a Telegram notification 10 min before. Set notify_call to also get a phone call 5 min before.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Event title (required)" },
+        description: { type: "string", description: "Optional description" },
+        event_date: {
+          type: "string",
+          description: "Date in YYYY-MM-DD format (required)",
+        },
+        event_time: {
+          type: "string",
+          description: "Time in HH:MM format (optional)",
+        },
+        type: {
+          type: "string",
+          enum: ["event", "note", "reminder"],
+          description: "Type (default: event)",
+        },
+        project_id: {
+          type: "number",
+          description: "Link to a project (optional)",
+        },
+        notify_call: {
+          type: "boolean",
+          description: "Enable phone call reminder 5 min before event (requires event_time)",
+        },
+      },
+      required: ["title", "event_date"],
+    },
+  },
+  {
+    name: "get_event",
+    description: "Get a calendar event by ID.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "number", description: "Event ID" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "update_event",
+    description:
+      "Update a calendar event. Only provided fields are updated.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "number", description: "Event ID (required)" },
+        title: { type: "string" },
+        description: { type: "string" },
+        event_date: { type: "string", description: "YYYY-MM-DD" },
+        event_time: { type: "string", description: "HH:MM or null to clear" },
+        type: { type: "string", enum: ["event", "note", "reminder"] },
+        project_id: { type: "number", description: "Project ID or null to unlink" },
+        notify_call: { type: "boolean", description: "Enable/disable phone call reminder" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "delete_event",
+    description: "Delete a calendar event.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "number", description: "Event ID" },
+      },
+      required: ["id"],
+    },
+  },
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -336,6 +429,56 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
             mimeType,
           }],
         };
+      }
+
+      case "list_events": {
+        const params = new URLSearchParams();
+        if (a.month) params.set("month", String(a.month));
+        if (a.project_id) params.set("project_id", String(a.project_id));
+        const qs = params.size > 0 ? `?${params}` : "";
+        const data = await api("GET", `/api/events${qs}`);
+        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+      }
+
+      case "create_event": {
+        const title = String(a.title ?? "").trim();
+        if (!title) throw new Error("title is required");
+        if (!a.event_date) throw new Error("event_date is required");
+        const data = await api("POST", "/api/events", {
+          title,
+          description: String(a.description ?? "").trim(),
+          event_date: String(a.event_date),
+          event_time: a.event_time ? String(a.event_time) : null,
+          type: a.type ?? "event",
+          project_id: a.project_id ? Number(a.project_id) : null,
+          notify_call: Boolean(a.notify_call),
+        });
+        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+      }
+
+      case "get_event": {
+        const data = await api("GET", `/api/events/${Number(a.id)}`);
+        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+      }
+
+      case "update_event": {
+        const id = Number(a.id);
+        if (!id) throw new Error("id is required");
+        const payload: Record<string, unknown> = {};
+        if (a.title !== undefined) payload.title = String(a.title).trim();
+        if (a.description !== undefined) payload.description = String(a.description).trim();
+        if (a.event_date !== undefined) payload.event_date = String(a.event_date);
+        if (a.event_time !== undefined) payload.event_time = a.event_time;
+        if (a.type !== undefined) payload.type = a.type;
+        if (a.project_id !== undefined) payload.project_id = a.project_id;
+        if (a.notify_call !== undefined) payload.notify_call = a.notify_call;
+        const data = await api("PUT", `/api/events/${id}`, payload);
+        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+      }
+
+      case "delete_event": {
+        await api("DELETE", `/api/events/${Number(a.id)}`);
+        return { content: [{ type: "text", text: `Event ${a.id} deleted.` }] };
       }
 
       default:

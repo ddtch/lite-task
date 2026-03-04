@@ -14,6 +14,7 @@ Designed to also act as an **MCP server** so Claude (or Claude Desktop) can read
 - **Attachments** — drag & drop images, upload audio files (MP3, M4A), upload video files (MP4), or record voice memos per task
 - **Image lightbox** — click any image attachment to view it full-screen with prev/next navigation
 - **Clickable links** — URLs in task descriptions are automatically rendered as links
+- **Calendar** — interactive calendar (FullCalendar) with events, notes, and reminders; month/week/day/year views; per-day event panel; stats bar
 - **SQLite or Turso** — local SQLite by default; switch to Turso cloud database via env vars
 - **REST API** — clean JSON API for programmatic access
 - **MCP server** — two modes: direct DB (local) or HTTP client (remote/Docker)
@@ -317,6 +318,11 @@ When lite-task and the AI tool run on the same machine, this mode skips HTTP ent
 | `update_task`    | Update title, description, status, or priority            |
 | `delete_task`    | Delete a task                                             |
 | `get_attachment` | Download an attachment image and return it as base64      |
+| `list_events`   | List calendar events — filter by `month`, `project_id`    |
+| `create_event`  | Create a calendar event, note, or reminder                |
+| `get_event`     | Get a calendar event by ID                                |
+| `update_event`  | Update event title, date, time, type, or description      |
+| `delete_event`  | Delete a calendar event                                   |
 
 
 ---
@@ -370,6 +376,9 @@ lite-task ships a Telegram bot that accepts natural-language messages and uses a
 - "List my projects"
 - "Create a task called Fix login bug in project Personal with high priority"
 - "What tasks are in progress?"
+- "Add an event called Team standup on 2026-03-10 at 10:00"
+- "Create a reminder for March 15 — submit tax forms"
+- "What events do I have this month?"
 - Send a voice message — it gets transcribed and the agent acts on the spoken words
 - Send a photo or file — the agent can attach it to any task
 
@@ -534,6 +543,46 @@ Open `/calls` in the browser to make voice calls directly from the UI via WebRTC
 
 ---
 
+## Event Notifications
+
+Calendar events with a time set automatically get notifications:
+
+- **Telegram message** — sent ~10 minutes before the event via the bot
+- **Phone call** (optional) — triggered ~5 minutes before if "Call me" was checked when creating the event
+
+### Setup
+
+#### 1. Telegram notifications (required)
+
+Needs `TELEGRAM_BOT_TOKEN` and `BOT_HOST_ID` in `.env` (same as the bot).
+
+#### 2. Phone call notifications (optional)
+
+Needs Retell AI configured (see Voice Calling above) plus:
+
+```env
+RETELL_AGENT_ID=<your agent ID>
+RETELL_FROM_NUMBER=+1XXXXXXXXXX
+REMINDER_TO_NUMBER=+1YYYYYYYYYY
+```
+
+#### 3. Run the event scheduler
+
+```bash
+deno task events:scheduler
+```
+
+In Docker, the `event-scheduler` service starts automatically alongside the bot.
+
+### How it works
+
+- The scheduler polls every 60 seconds for events approaching their `event_time`
+- Events within 10 minutes get a Telegram notification (once per event)
+- Events within 5 minutes with `notify_call = 1` get a phone call (once per event)
+- Notification flags (`notified_telegram`, `notified_call`) prevent duplicate sends
+
+---
+
 ## REST API
 
 ### Projects
@@ -555,6 +604,18 @@ GET    /api/tasks/:id         → get task + attachments
 PUT    /api/tasks/:id         → update task  { title?, description?, priority?, status? }
 DELETE /api/tasks/:id         → delete task
 ```
+
+### Calendar Events
+
+```
+GET    /api/events            → list events  ?month=YYYY-MM&project_id=
+POST   /api/events            → create event  { title, event_date, description?, event_time?, type?, project_id? }
+GET    /api/events/:id        → get event
+PUT    /api/events/:id        → update event  { title?, description?, event_date?, event_time?, type?, project_id? }
+DELETE /api/events/:id        → delete event
+```
+
+Event types: `event`, `note`, `reminder`.
 
 ### Attachments
 
@@ -602,7 +663,8 @@ task-light/
 │   ├── tools.ts           # Voice agent tool definitions for Retell LLM
 │   ├── setup.ts           # One-time setup: creates Retell LLM + Agent
 │   ├── update-url.ts      # Update webhook URLs after ngrok restart
-│   └── scheduler.ts       # Reminder scheduler — triggers outbound calls
+│   ├── scheduler.ts       # Reminder scheduler — triggers outbound calls
+│   └── event-scheduler.ts # Event notification scheduler (Telegram + phone calls)
 ├── db/
 │   ├── database.ts        # DB adapter — local SQLite (node:sqlite) or Turso (@libsql/client)
 │   └── queries.ts         # Async CRUD helpers (work with both adapters)
@@ -612,6 +674,7 @@ task-light/
 ├── routes/
 │   ├── _app.tsx           # Global layout
 │   ├── index.tsx          # → redirect to /projects
+│   ├── calendar.tsx       # Calendar page (FullCalendar, events/notes/reminders)
 │   ├── calls.tsx          # Voice agent page (web call, reminders, call history)
 │   ├── projects/
 │   │   ├── index.tsx      # Project list
@@ -628,6 +691,7 @@ task-light/
 │       ├── tasks/
 │       │   └── [id]/upload.tsx
 │       ├── uploads/
+│       ├── events/         # Calendar event CRUD
 │       ├── voice/          # Retell AI webhooks
 │       │   ├── tool.ts     # Function-calling dispatcher
 │       │   ├── web-call.ts # Create web call (returns access token)
@@ -638,6 +702,7 @@ task-light/
 │   ├── KanbanBoard.tsx        # Drag-and-drop board view
 │   ├── ImageLightbox.tsx      # Full-screen image viewer
 │   ├── AttachmentUploader.tsx # Drag-drop file uploader (image / audio / video)
+│   ├── Calendar.tsx            # Interactive calendar (FullCalendar)
 │   ├── VoiceRecorder.tsx      # In-browser voice memo recorder
 │   └── WebCall.tsx            # WebRTC voice call with live transcript
 ├── components/
@@ -689,6 +754,7 @@ task-light/
 | `deno task calls:setup`    | Create Retell AI voice agent (one-time setup)        |
 | `deno task calls:update-url` | Update Retell webhook URLs after ngrok restart     |
 | `deno task calls:scheduler` | Run reminder scheduler for outbound calls          |
+| `deno task events:scheduler` | Run event notification scheduler (Telegram + calls) |
 
 
 ---

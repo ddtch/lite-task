@@ -702,3 +702,281 @@ audio {
 .t-back:hover {
   color: var(--green-dim);
 }
+
+/* ═══ CALENDAR LAYOUT ═══ */
+
+.cal-layout {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.cal-panel {
+  width: 320px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 4.5rem;
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
+  transition: opacity 200ms;
+}
+
+.cal-main {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 860px) {
+  .cal-layout {
+    flex-direction: column-reverse;
+  }
+  .cal-panel {
+    width: 100%;
+    position: static;
+    max-height: none;
+  }
+}
+
+/* ═══ CALENDAR PANEL HOVER EFFECTS ═══ */
+.cal-event-item {
+  transition: filter .15s ease, background .15s ease;
+}
+.cal-event-item:hover {
+  filter: brightness(1.3);
+}
+.cal-delete-btn {
+  transition: background .15s ease, opacity .15s ease;
+  border-radius: 3px;
+}
+.cal-delete-btn:hover {
+  background: color-mix(in srgb, var(--red) 25%, transparent) !important;
+  opacity: 1 !important;
+}
+
+/* ═══ FULLCALENDAR TERMINAL THEME ═══ */
+
+/*
+ * Restore table layout — Tailwind v4 preflight resets these,
+ * and FullCalendar's runtime-injected CSS may lose the race
+ * (especially in Safari with adoptedStyleSheets).
+ */
+.fc table          { display: table !important; width: 100%; }
+.fc thead          { display: table-header-group !important; }
+.fc tbody          { display: table-row-group !important; }
+.fc tr             { display: table-row !important; }
+.fc td, .fc th     { display: table-cell !important; }
+.fc colgroup       { display: table-column-group !important; }
+.fc col            { display: table-column !important; }
+.fc .fc-scrollgrid { border-collapse: separate; border-spacing: 0; }
+
+.fc-terminal {
+  --fc-border-color: var(--b0);
+  --fc-today-bg-color: rgba(0,255,65,.06);
+  --fc-highlight-color: rgba(0,240,255,.08);
+  --fc-neutral-bg-color: var(--bg1);
+  --fc-page-bg-color: var(--bg0);
+  --fc-event-border-color: var(--green-mute);
+  --fc-event-bg-color: rgba(0,255,65,.15);
+  --fc-event-text-color: var(--green);
+  --fc-non-business-color: rgba(0,0,0,.15);
+  --fc-now-indicator-color: var(--cyan);
+}
+
+.fc-terminal .fc-toolbar-title {
+  font-family: 'VT323', monospace !important;
+  font-size: 1.6rem !important;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--green);
+  text-shadow: var(--glow-xs);
+}
+
+.fc-terminal .fc-button {
+  font-family: 'VT323', monospace !important;
+  font-size: 1rem !important;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  background: transparent !important;
+  border: 1px solid var(--green-faint) !important;
+  color: var(--green-dim) !important;
+  box-shadow: none !important;
+  padding: 4px 12px !important;
+  border-radius: 0 !important;
+}
+
+.fc-terminal .fc-button:hover {
+  border-color: var(--green-d) !important;
+  color: var(--green) !important;
+  background: rgba(0,255,65,.07) !important;
+}
+
+.fc-terminal .fc-button-active,
+.fc-terminal .fc-button.fc-button-active {
+  background: rgba(0,255,65,.15) !important;
+  border-color: var(--green) !important;
+  color: var(--green) !important;
+  box-shadow: var(--glow-xs) !important;
+}
+
+.fc-terminal .fc-button:disabled {
+  opacity: .4 !important;
+}
+
+.fc-terminal .fc-button:focus {
+  box-shadow: none !important;
+}
+
+.fc-terminal .fc-toolbar {
+  margin-bottom: .8rem !important;
+}
+
+.fc-terminal .fc-col-header-cell {
+  background: var(--bg1);
+  border-color: var(--b0);
+}
+
+.fc-terminal .fc-col-header-cell-cushion {
+  font-family: 'VT323', monospace;
+  font-size: .9rem;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  color: var(--green-mute);
+  text-decoration: none !important;
+  padding: 6px 4px;
+}
+
+.fc-terminal .fc-daygrid-day-number {
+  font-family: 'VT323', monospace;
+  font-size: 1.05rem;
+  color: var(--green-dim);
+  text-decoration: none !important;
+  padding: 6px 8px;
+}
+
+.fc-terminal .fc-day-today .fc-daygrid-day-number {
+  color: var(--cyan);
+  text-shadow: var(--glow-cyan);
+  font-weight: normal !important;
+  background: none !important;
+}
+
+.fc-terminal .fc-day-today {
+  background: rgba(0,255,65,.06) !important;
+}
+
+.fc-terminal .fc-day-other .fc-daygrid-day-number {
+  color: var(--green-faint);
+  opacity: .6;
+}
+
+.fc-terminal .fc-daygrid-day {
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.fc-terminal .fc-daygrid-day:hover {
+  background: var(--bg2) !important;
+}
+
+.fc-terminal .fc-daygrid-day-frame {
+  min-height: 70px;
+}
+
+.fc-terminal .fc-event {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: .75rem;
+  border-width: 1px;
+  border-left-width: 3px;
+  cursor: pointer;
+  border-radius: 0;
+  padding: 1px 3px;
+}
+
+.fc-terminal .fc-event:hover {
+  filter: brightness(1.3);
+}
+
+.fc-terminal .fc-event-title {
+  font-weight: normal;
+}
+
+.fc-terminal .fc-timegrid-slot-label-cushion,
+.fc-terminal .fc-timegrid-axis-cushion {
+  font-family: 'VT323', monospace;
+  font-size: .85rem;
+  color: var(--green-faint);
+}
+
+.fc-terminal .fc-scrollgrid {
+  border-color: var(--b0);
+}
+
+.fc-terminal td,
+.fc-terminal th {
+  border-color: var(--b0) !important;
+}
+
+.fc-terminal .fc-more-link {
+  font-family: 'VT323', monospace;
+  font-size: .85rem;
+  color: var(--cyan) !important;
+}
+
+.fc-terminal .fc-popover {
+  background: var(--bg1) !important;
+  border: 1px solid var(--b1) !important;
+  box-shadow: var(--glow-xs), 0 10px 30px rgba(0,0,0,.7);
+  border-radius: 0;
+}
+
+.fc-terminal .fc-popover-header {
+  background: var(--bg2) !important;
+  font-family: 'VT323', monospace;
+  color: var(--green-mute);
+}
+
+.fc-terminal .fc-timegrid-now-indicator-line {
+  border-color: var(--cyan);
+  border-width: 2px;
+}
+
+.fc-terminal .fc-timegrid-now-indicator-arrow {
+  border-color: var(--cyan);
+}
+
+/* Multi-month (year view) */
+.fc-terminal .fc-multimonth {
+  border-color: var(--b0);
+}
+
+.fc-terminal .fc-multimonth-title {
+  font-family: 'VT323', monospace;
+  font-size: 1.1rem !important;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--green-dim);
+  padding: 6px 8px;
+}
+
+.fc-terminal .fc-multimonth-daygrid {
+  background: var(--bg0);
+}
+
+.fc-terminal .fc-multimonth-header {
+  background: var(--bg1);
+}
+
+/* Nav links (clickable day headers) */
+.fc-terminal a.fc-daygrid-day-number:hover,
+.fc-terminal a.fc-col-header-cell-cushion:hover {
+  color: var(--cyan);
+}
+
+/* Remove list-view bullet */
+.fc-terminal .fc-list {
+  border-color: var(--b0);
+}
+
+.fc-terminal .fc-list-event {
+  cursor: pointer;
+}

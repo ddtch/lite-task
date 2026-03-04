@@ -151,6 +151,19 @@ const SCHEMA = `
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    event_date TEXT NOT NULL,
+    event_time TEXT,
+    type TEXT NOT NULL DEFAULT 'event'
+      CHECK(type IN ('event', 'note', 'reminder')),
+    project_id INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
   )`;
 
 async function initSchema(db: DbAdapter): Promise<void> {
@@ -192,6 +205,17 @@ export function getDb(): Promise<DbAdapter> {
     }
 
     await initSchema(adapter);
+
+    // Migration: add notification columns to events table
+    const migrations = [
+      "ALTER TABLE events ADD COLUMN notify_call INTEGER NOT NULL DEFAULT 0",
+      "ALTER TABLE events ADD COLUMN notified_telegram INTEGER NOT NULL DEFAULT 0",
+      "ALTER TABLE events ADD COLUMN notified_call INTEGER NOT NULL DEFAULT 0",
+    ];
+    for (const sql of migrations) {
+      try { await adapter.run(sql); } catch { /* column already exists */ }
+    }
+
     return adapter;
   })();
 
