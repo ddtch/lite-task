@@ -42,6 +42,8 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/deno.json ./deno.json
 COPY --from=builder /app/deno.lock ./deno.lock
 COPY --from=builder /app/bot ./bot
+COPY --from=builder /app/calls ./calls
+COPY --from=builder /app/db ./db
 
 # Persistent data dir (DB files + uploads) — overridden by Docker volume in production
 RUN mkdir -p data/uploads
