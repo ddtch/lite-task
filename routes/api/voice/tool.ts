@@ -8,11 +8,15 @@
 
 import { define } from "../../../utils.ts";
 import {
+  createEvent,
   createReminder,
   createTask,
   listAllTasks,
+  listEvents,
   listProjects,
+  updateEvent,
   updateTask,
+  type CalendarEvent,
   type Project,
   type Task,
 } from "../../../db/queries.ts";
@@ -37,6 +41,14 @@ function findTaskByTitle(tasks: Task[], title: string): Task | undefined {
   return (
     tasks.find((t) => t.title.toLowerCase() === lower) ??
     tasks.find((t) => t.title.toLowerCase().includes(lower))
+  );
+}
+
+function findEventByTitle(events: CalendarEvent[], title: string): CalendarEvent | undefined {
+  const lower = title.toLowerCase();
+  return (
+    events.find((e) => e.title.toLowerCase() === lower) ??
+    events.find((e) => e.title.toLowerCase().includes(lower))
   );
 }
 
@@ -224,6 +236,78 @@ export const handler = define.handlers({
           if (highPriority.length > 0) {
             result += ` High priority: ${highPriority.map((t) => `"${t.title}"`).join(", ")}.`;
           }
+          break;
+        }
+
+        case "list_events": {
+          const month = args.month
+            ? String(args.month)
+            : `${new Date().getFullYear()}-${(new Date().getMonth() + 1).toString().padStart(2, "0")}`;
+          const events = await listEvents({ month });
+          if (events.length === 0) {
+            result = `No events found for ${month}.`;
+          } else {
+            const lines = events.slice(0, 10).map((e) => {
+              const time = e.event_time ? ` at ${e.event_time}` : "";
+              return `"${e.title}" on ${e.event_date}${time} (${e.type})`;
+            });
+            result = `Found ${events.length} event(s) for ${month}: ${lines.join("; ")}${events.length > 10 ? ` ...and ${events.length - 10} more` : ""}.`;
+          }
+          break;
+        }
+
+        case "create_event": {
+          const title = String(args.title ?? "").trim();
+          if (!title) { result = "Event title is required."; break; }
+          const eventDate = String(args.event_date ?? "").trim();
+          if (!eventDate) { result = "Event date is required."; break; }
+
+          const validTypes = ["event", "note", "reminder"] as const;
+          const type = validTypes.includes(args.type as typeof validTypes[number])
+            ? (args.type as CalendarEvent["type"])
+            : "event";
+
+          const id = await createEvent({
+            title,
+            description: String(args.description ?? "").trim(),
+            event_date: eventDate,
+            event_time: args.event_time ? String(args.event_time) : null,
+            type,
+            notify_call: Boolean(args.notify_call),
+          });
+
+          const timeStr = args.event_time ? ` at ${args.event_time}` : "";
+          const callStr = args.notify_call ? " You'll get a phone call 5 minutes before." : "";
+          result = `${type.charAt(0).toUpperCase() + type.slice(1)} "${title}" created for ${eventDate}${timeStr} (ID: ${id}).${callStr}`;
+          break;
+        }
+
+        case "update_event": {
+          const eventTitle = String(args.event_title ?? "").trim();
+          if (!eventTitle) { result = "Event title is required to find the event."; break; }
+
+          const events = await listEvents();
+          const event = findEventByTitle(events, eventTitle);
+          if (!event) {
+            result = `Event "${eventTitle}" not found.`;
+            break;
+          }
+
+          const fields: Record<string, unknown> = {};
+          if (args.title !== undefined) fields.title = String(args.title).trim();
+          if (args.description !== undefined) fields.description = String(args.description).trim();
+          if (args.event_date !== undefined) fields.event_date = String(args.event_date);
+          if (args.event_time !== undefined) {
+            fields.event_time = args.event_time === "none" ? null : String(args.event_time);
+          }
+          if (args.type !== undefined) {
+            const validTypes = ["event", "note", "reminder"];
+            if (validTypes.includes(String(args.type))) fields.type = args.type;
+          }
+          if (args.notify_call !== undefined) fields.notify_call = args.notify_call ? 1 : 0;
+
+          await updateEvent(event.id, fields);
+          result = `Event "${event.title}" updated.`;
           break;
         }
 

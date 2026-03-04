@@ -150,5 +150,82 @@ export function buildRetellTools(baseUrl: string): RetellTool[] {
       speak_after_execution: true,
       timeout_ms: 10000,
     },
+    {
+      type: "custom",
+      name: "list_events",
+      description:
+        "List calendar events. Call when the user asks about their schedule, upcoming events, or what's on their calendar.",
+      url,
+      method: "POST",
+      parameters: {
+        type: "object",
+        properties: {
+          month: {
+            type: "string",
+            description: "Month to filter by in YYYY-MM format (e.g. 2026-03). Defaults to current month.",
+          },
+        },
+      },
+      speak_during_execution: true,
+      speak_after_execution: true,
+      timeout_ms: 10000,
+    },
+    {
+      type: "custom",
+      name: "create_event",
+      description:
+        "Create a calendar event, note, or reminder. Timed events automatically get a Telegram notification 10 min before. Set notify_call to true for a phone call 5 min before.",
+      url,
+      method: "POST",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Event title" },
+          event_date: { type: "string", description: "Date in YYYY-MM-DD format" },
+          event_time: { type: "string", description: "Time in HH:MM format (optional)" },
+          description: { type: "string", description: "Optional description" },
+          type: {
+            type: "string",
+            enum: ["event", "note", "reminder"],
+            description: "Type of entry, defaults to event",
+          },
+          notify_call: {
+            type: "boolean",
+            description: "Set to true to get a phone call reminder 5 minutes before the event",
+          },
+        },
+        required: ["title", "event_date"],
+      },
+      speak_during_execution: true,
+      speak_after_execution: true,
+      timeout_ms: 10000,
+    },
+    {
+      type: "custom",
+      name: "update_event",
+      description:
+        "Update a calendar event by title. Use when the user wants to change the time, date, description, or enable/disable call notification for an event.",
+      url,
+      method: "POST",
+      parameters: {
+        type: "object",
+        properties: {
+          event_title: {
+            type: "string",
+            description: "Title or partial title of the event to update",
+          },
+          title: { type: "string", description: "New title" },
+          event_date: { type: "string", description: "New date in YYYY-MM-DD" },
+          event_time: { type: "string", description: "New time in HH:MM, or 'none' to clear" },
+          description: { type: "string", description: "New description" },
+          type: { type: "string", enum: ["event", "note", "reminder"] },
+          notify_call: { type: "boolean", description: "Enable/disable phone call reminder" },
+        },
+        required: ["event_title"],
+      },
+      speak_during_execution: true,
+      speak_after_execution: true,
+      timeout_ms: 10000,
+    },
   ];
 }
