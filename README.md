@@ -304,18 +304,20 @@ When lite-task and the AI tool run on the same machine, this mode skips HTTP ent
 
 ### Available MCP tools
 
-| Tool             | Description                                                |
-| ---------------- | ---------------------------------------------------------- |
-| `list_projects`  | List all projects with task counts                         |
-| `create_project` | Create a new project                                       |
-| `get_project`    | Get a project with its tasks                               |
-| `delete_project` | Delete a project and all its tasks                         |
+
+| Tool             | Description                                               |
+| ---------------- | --------------------------------------------------------- |
+| `list_projects`  | List all projects with task counts                        |
+| `create_project` | Create a new project                                      |
+| `get_project`    | Get a project with its tasks                              |
+| `delete_project` | Delete a project and all its tasks                        |
 | `list_tasks`     | List tasks — filter by `project_id`, `status`, `priority` |
-| `create_task`    | Create a task in a project                                 |
-| `get_task`       | Get task details including attachments                     |
-| `update_task`    | Update title, description, status, or priority             |
-| `delete_task`    | Delete a task                                              |
-| `get_attachment` | Download an attachment image and return it as base64       |
+| `create_task`    | Create a task in a project                                |
+| `get_task`       | Get task details including attachments                    |
+| `update_task`    | Update title, description, status, or priority            |
+| `delete_task`    | Delete a task                                             |
+| `get_attachment` | Download an attachment image and return it as base64      |
+
 
 ---
 
@@ -415,10 +417,12 @@ The `bot` service starts automatically after the `lite-task` service passes its 
 
 ### AI provider
 
+
 | Env var             | Provider         | Model             |
 | ------------------- | ---------------- | ----------------- |
 | `ANTHROPIC_API_KEY` | Anthropic Claude | claude-sonnet-4-6 |
 | `OPENAI_API_KEY`    | OpenAI           | gpt-4o-mini       |
+
 
 Set one or both. Anthropic takes priority if both are present.
 
@@ -430,13 +434,15 @@ Transcription requires `OPENAI_API_KEY`. Without it, the bot falls back to handl
 
 ### Media support
 
-| Telegram type   | Stored as  |
-| --------------- | ---------- |
-| Photo           | `image`    |
-| Voice message   | `voice`    |
-| Audio (MP3/M4A) | `audio`    |
-| Video (MP4)     | `video`    |
+
+| Telegram type   | Stored as                  |
+| --------------- | -------------------------- |
+| Photo           | `image`                    |
+| Voice message   | `voice`                    |
+| Audio (MP3/M4A) | `audio`                    |
+| Video (MP4)     | `video`                    |
 | Document/file   | auto-detected by MIME type |
+
 
 ### Groups and channels
 
@@ -446,6 +452,85 @@ Add the bot to a Telegram group or channel. It saves all messages it sees to `da
 - "Create tasks from the last 20 messages in the project channel"
 
 In groups, the bot only responds when @mentioned or when replying to its own message.
+
+---
+
+## Voice Calling (Retell AI)
+
+lite-task integrates with [Retell AI](https://www.retellai.com/) for voice-based task management. You can call the agent by phone or from the browser, and the agent can call you back with reminders.
+
+**What you can do by voice:**
+
+- "Create a task called Fix login bug in project Personal"
+- "What tasks are in progress?"
+- "Mark the deploy task as done"
+- "Remind me about the deadline tomorrow at 3pm"
+
+### Setup
+
+#### 1. Create a Retell AI account
+
+Sign up at [retellai.com](https://www.retellai.com/) and purchase a phone number.
+
+#### 2. Configure environment variables
+
+Add to `.env`:
+
+```env
+RETELL_API_KEY=<your Retell API key>
+APP_BASE_URL=<public URL for webhooks, e.g. https://your-domain.com or ngrok URL>
+```
+
+#### 3. Create the voice agent
+
+```bash
+deno task calls:setup
+```
+
+This creates a Retell LLM + Agent with task management tools. Copy the output into `.env`:
+
+```env
+RETELL_AGENT_ID=<from setup output>
+RETELL_LLM_ID=<from setup output>
+```
+
+#### 4. Bind to phone number
+
+In the [Retell Dashboard](https://dashboard.retellai.com), assign the agent to your phone number for both inbound and outbound calls. Or via API:
+
+```bash
+curl -X PATCH "https://api.retellai.com/update-phone-number/+1XXXXXXXXXX" \
+  -H "Authorization: Bearer $RETELL_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"inbound_agent_id": "<RETELL_AGENT_ID>", "outbound_agent_id": "<RETELL_AGENT_ID>"}'
+```
+
+#### 5. Configure reminders (optional)
+
+For outbound reminder calls, add:
+
+```env
+RETELL_FROM_NUMBER=+1XXXXXXXXXX    # your Retell phone number
+REMINDER_TO_NUMBER=+1YYYYYYYYYY    # your personal number
+```
+
+Run the reminder scheduler:
+
+```bash
+deno task calls:scheduler
+```
+
+### Updating webhook URLs
+
+When your public URL changes (e.g. new ngrok session), update `APP_BASE_URL` in `.env` and run:
+
+```bash
+deno task calls:update-url
+```
+
+### Web calls
+
+Open `/calls` in the browser to make voice calls directly from the UI via WebRTC — no phone number needed.
 
 ---
 
@@ -482,6 +567,24 @@ POST   /api/tasks/:id/upload  → upload file (multipart, field: "file")
 GET    /api/uploads/:filename → serve uploaded file
 ```
 
+### Voice
+
+```
+POST   /api/voice/tool       → Retell function-calling dispatcher (called by Retell AI)
+POST   /api/voice/web-call   → create web call { } → { access_token, call_id }
+POST   /api/voice/webhook    → Retell event webhook (call_started, call_ended, call_analyzed)
+```
+
+### Reminders
+
+```
+GET    /api/reminders         → list reminders  ?status=
+POST   /api/reminders         → create reminder  { message, remind_at, phone_number?, task_id?, project_id? }
+GET    /api/reminders/:id     → get reminder
+PUT    /api/reminders/:id     → update reminder  { message?, remind_at?, phone_number?, status? }
+DELETE /api/reminders/:id     → delete reminder
+```
+
 ---
 
 ## Project structure
@@ -494,6 +597,12 @@ task-light/
 │   ├── tools.ts           # Tool definitions and REST API executor
 │   ├── media.ts           # Telegram file download helpers
 │   └── store.ts           # SQLite store for group/channel message history (data/bot-messages.db)
+├── calls/
+│   ├── retell.ts          # Retell AI API client (fetch-based)
+│   ├── tools.ts           # Voice agent tool definitions for Retell LLM
+│   ├── setup.ts           # One-time setup: creates Retell LLM + Agent
+│   ├── update-url.ts      # Update webhook URLs after ngrok restart
+│   └── scheduler.ts       # Reminder scheduler — triggers outbound calls
 ├── db/
 │   ├── database.ts        # DB adapter — local SQLite (node:sqlite) or Turso (@libsql/client)
 │   └── queries.ts         # Async CRUD helpers (work with both adapters)
@@ -503,6 +612,7 @@ task-light/
 ├── routes/
 │   ├── _app.tsx           # Global layout
 │   ├── index.tsx          # → redirect to /projects
+│   ├── calls.tsx          # Voice agent page (web call, reminders, call history)
 │   ├── projects/
 │   │   ├── index.tsx      # Project list
 │   │   └── [id]/
@@ -517,13 +627,19 @@ task-light/
 │       ├── projects/
 │       ├── tasks/
 │       │   └── [id]/upload.tsx
-│       └── uploads/
+│       ├── uploads/
+│       ├── voice/          # Retell AI webhooks
+│       │   ├── tool.ts     # Function-calling dispatcher
+│       │   ├── web-call.ts # Create web call (returns access token)
+│       │   └── webhook.ts  # Call lifecycle events
+│       └── reminders/      # Reminder CRUD
 ├── islands/               # Client-side Preact components (hydrated in browser)
 │   ├── ProjectCreateModal.tsx
 │   ├── KanbanBoard.tsx        # Drag-and-drop board view
 │   ├── ImageLightbox.tsx      # Full-screen image viewer
 │   ├── AttachmentUploader.tsx # Drag-drop file uploader (image / audio / video)
-│   └── VoiceRecorder.tsx      # In-browser voice memo recorder
+│   ├── VoiceRecorder.tsx      # In-browser voice memo recorder
+│   └── WebCall.tsx            # WebRTC voice call with live transcript
 ├── components/
 │   └── Badge.tsx
 ├── data/                  # Runtime data (gitignored) — DB files + uploads
@@ -540,32 +656,40 @@ task-light/
 
 ## Stack
 
-| Layer         | Technology                                              |
-| ------------- | ------------------------------------------------------- |
-| Runtime       | Deno 2.2+                                               |
-| Framework     | Fresh 2.2                                               |
-| Bundler       | Vite 7 + `@fresh/plugin-vite`                           |
-| Styling       | Tailwind CSS v4                                         |
+
+| Layer         | Technology                                                   |
+| ------------- | ------------------------------------------------------------ |
+| Runtime       | Deno 2.2+                                                    |
+| Framework     | Fresh 2.2                                                    |
+| Bundler       | Vite 7 + `@fresh/plugin-vite`                                |
+| Styling       | Tailwind CSS v4                                              |
 | Database      | SQLite via `node:sqlite` (local) or Turso (`@libsql/client`) |
-| Interactivity | Preact islands + `@preact/signals`                      |
-| MCP           | `@modelcontextprotocol/sdk`                             |
-| Telegram bot  | grammY                                                  |
-| AI agent      | Anthropic SDK / OpenAI SDK                              |
+| Interactivity | Preact islands + `@preact/signals`                           |
+| MCP           | `@modelcontextprotocol/sdk`                                  |
+| Telegram bot  | grammY                                                       |
+| AI agent      | Anthropic SDK / OpenAI SDK                                   |
+| Voice calling | Retell AI + `retell-client-js-sdk` (WebRTC)                  |
+
 
 ---
 
 ## Deno tasks
 
-| Task                    | What it does                                         |
-| ----------------------- | ---------------------------------------------------- |
-| `deno task dev`         | Dev server with HMR on port 8011                     |
-| `deno task build`       | Build for production → `_fresh/`                     |
-| `deno task start`       | Serve production build on port 8011                  |
-| `deno task preview`     | Build + serve in one command (useful in Arc browser) |
-| `deno task bot`         | Run the Telegram bot (reads `.env`)                  |
-| `deno task mcp`         | MCP server — direct SQLite access                    |
-| `deno task mcp:http`    | MCP server — HTTP client mode                        |
-| `deno task compile-mcp` | Compile MCP HTTP client to a standalone binary       |
+
+| Task                       | What it does                                         |
+| -------------------------- | ---------------------------------------------------- |
+| `deno task dev`            | Dev server with HMR on port 8011                     |
+| `deno task build`          | Build for production → `_fresh/`                     |
+| `deno task start`          | Serve production build on port 8011                  |
+| `deno task preview`        | Build + serve in one command (useful in Arc browser) |
+| `deno task bot`            | Run the Telegram bot (reads `.env`)                  |
+| `deno task mcp`            | MCP server — direct SQLite access                    |
+| `deno task mcp:http`       | MCP server — HTTP client mode                        |
+| `deno task compile-mcp`    | Compile MCP HTTP client to a standalone binary       |
+| `deno task calls:setup`    | Create Retell AI voice agent (one-time setup)        |
+| `deno task calls:update-url` | Update Retell webhook URLs after ngrok restart     |
+| `deno task calls:scheduler` | Run reminder scheduler for outbound calls          |
+
 
 ---
 
@@ -573,11 +697,13 @@ task-light/
 
 All runtime data lives under `data/` (relative to the working directory):
 
-| Path                  | Contents                                              |
-| --------------------- | ----------------------------------------------------- |
-| `data/task-light.db`  | Main app database (local SQLite mode only)            |
-| `data/bot-messages.db`| Telegram group/channel message history (always local) |
-| `data/uploads/`       | Uploaded files (images, audio, video)                 |
+
+| Path                   | Contents                                              |
+| ---------------------- | ----------------------------------------------------- |
+| `data/task-light.db`   | Main app database (local SQLite mode only)            |
+| `data/bot-messages.db` | Telegram group/channel message history (always local) |
+| `data/uploads/`        | Uploaded files (images, audio, video)                 |
+
 
 All files are created automatically on first run. In Docker, the entire `data/` directory is bind-mounted from the host (`./data:/app/data`), so data survives container restarts and image rebuilds.
 
