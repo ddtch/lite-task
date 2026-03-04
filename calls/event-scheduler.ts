@@ -93,6 +93,9 @@ async function checkCallNotifications() {
 
 async function check() {
   try {
+    const now = new Date();
+    const local = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    console.log(`[event-scheduler] Checking at ${local} (TZ: ${Intl.DateTimeFormat().resolvedOptions().timeZone})`);
     await checkTelegramNotifications();
     await checkCallNotifications();
   } catch (err) {

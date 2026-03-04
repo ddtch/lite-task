@@ -45,6 +45,8 @@ services:
     command: ["deno", "run", "-A", "calls/event-scheduler.ts"]
     env_file:
       - .env
+    environment:
+      - TZ=${TZ:-America/New_York}
     volumes:
       - ./data:/app/data
     depends_on:

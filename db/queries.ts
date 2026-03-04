@@ -452,7 +452,7 @@ export async function createEvent(fields: {
   notify_call?: boolean;
 }): Promise<number> {
   const db = await getDb();
-  return await db.run(
+  const id = await db.run(
     `INSERT INTO events (title, description, event_date, event_time, type, project_id, notify_call)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
@@ -465,6 +465,16 @@ export async function createEvent(fields: {
       fields.notify_call ? 1 : 0,
     ],
   );
+
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timeStr = fields.event_time ? ` ${fields.event_time}` : "";
+  const notifyParts: string[] = [];
+  if (fields.event_time) notifyParts.push("telegram 10min before");
+  if (fields.notify_call) notifyParts.push("phone call 5min before");
+  const notifyStr = notifyParts.length > 0 ? ` | notifications: ${notifyParts.join(", ")}` : " | no notifications (no time set)";
+  console.log(`[events] Created #${id} "${fields.title}" → ${fields.event_date}${timeStr} (${tz})${notifyStr}`);
+
+  return id;
 }
 
 export async function updateEvent(
@@ -491,26 +501,37 @@ export async function deleteEvent(id: number): Promise<void> {
   await db.run("DELETE FROM events WHERE id = ?", [id]);
 }
 
+/** Format current local time as "YYYY-MM-DDTHH:MM" for SQL comparison */
+function localNow(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export async function listDueEventsTelegram(): Promise<CalendarEvent[]> {
   const db = await getDb();
+  const now = localNow();
   return await db.all<CalendarEvent>(
     `SELECT * FROM events
      WHERE event_time IS NOT NULL
        AND notified_telegram = 0
-       AND datetime(event_date || 'T' || event_time) <= datetime('now', 'localtime', '+10 minutes')
-       AND datetime(event_date || 'T' || event_time) >= datetime('now', 'localtime')`,
+       AND datetime(event_date || 'T' || event_time) <= datetime(?, '+10 minutes')
+       AND datetime(event_date || 'T' || event_time) >= datetime(?)`,
+    [now, now],
   );
 }
 
 export async function listDueEventsCall(): Promise<CalendarEvent[]> {
   const db = await getDb();
+  const now = localNow();
   return await db.all<CalendarEvent>(
     `SELECT * FROM events
      WHERE event_time IS NOT NULL
        AND notify_call = 1
        AND notified_call = 0
-       AND datetime(event_date || 'T' || event_time) <= datetime('now', 'localtime', '+5 minutes')
-       AND datetime(event_date || 'T' || event_time) >= datetime('now', 'localtime')`,
+       AND datetime(event_date || 'T' || event_time) <= datetime(?, '+5 minutes')
+       AND datetime(event_date || 'T' || event_time) >= datetime(?)`,
+    [now, now],
   );
 }
 
