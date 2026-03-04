@@ -497,8 +497,8 @@ export async function listDueEventsTelegram(): Promise<CalendarEvent[]> {
     `SELECT * FROM events
      WHERE event_time IS NOT NULL
        AND notified_telegram = 0
-       AND datetime(event_date || 'T' || event_time) <= datetime('now', '+10 minutes')
-       AND datetime(event_date || 'T' || event_time) >= datetime('now')`,
+       AND datetime(event_date || 'T' || event_time) <= datetime('now', 'localtime', '+10 minutes')
+       AND datetime(event_date || 'T' || event_time) >= datetime('now', 'localtime')`,
   );
 }
 
@@ -509,8 +509,8 @@ export async function listDueEventsCall(): Promise<CalendarEvent[]> {
      WHERE event_time IS NOT NULL
        AND notify_call = 1
        AND notified_call = 0
-       AND datetime(event_date || 'T' || event_time) <= datetime('now', '+5 minutes')
-       AND datetime(event_date || 'T' || event_time) >= datetime('now')`,
+       AND datetime(event_date || 'T' || event_time) <= datetime('now', 'localtime', '+5 minutes')
+       AND datetime(event_date || 'T' || event_time) >= datetime('now', 'localtime')`,
   );
 }
 
