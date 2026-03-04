@@ -6,5 +6,6 @@ export default defineConfig({
   plugins: [fresh(), tailwindcss()],
   server: {
     port: 8011,
+    allowedHosts: true,
   },
 });

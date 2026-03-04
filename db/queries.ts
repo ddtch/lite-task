@@ -231,3 +231,164 @@ export async function deleteAttachment(id: number): Promise<void> {
   const db = await getDb();
   await db.run("DELETE FROM attachments WHERE id = ?", [id]);
 }
+
+// ---------------------------------------------------------------------------
+// Call Logs
+// ---------------------------------------------------------------------------
+
+export interface CallLog {
+  id: number;
+  call_id: string;
+  call_type: "phone_call" | "web_call";
+  direction: "inbound" | "outbound";
+  from_number: string;
+  to_number: string;
+  duration_seconds: number | null;
+  transcript: string | null;
+  call_status: string;
+  disconnection_reason: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  created_at: string;
+}
+
+export async function listCallLogs(limit = 50): Promise<CallLog[]> {
+  const db = await getDb();
+  return await db.all<CallLog>(
+    "SELECT * FROM call_logs ORDER BY created_at DESC LIMIT ?",
+    [limit],
+  );
+}
+
+export async function getCallLog(callId: string): Promise<CallLog | undefined> {
+  const db = await getDb();
+  return await db.get<CallLog>("SELECT * FROM call_logs WHERE call_id = ?", [callId]);
+}
+
+export async function createCallLog(fields: {
+  call_id: string;
+  call_type: CallLog["call_type"];
+  direction: CallLog["direction"];
+  from_number?: string;
+  to_number?: string;
+  call_status?: string;
+}): Promise<number> {
+  const db = await getDb();
+  return await db.run(
+    `INSERT INTO call_logs (call_id, call_type, direction, from_number, to_number, call_status)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      fields.call_id,
+      fields.call_type,
+      fields.direction,
+      fields.from_number ?? "",
+      fields.to_number ?? "",
+      fields.call_status ?? "registered",
+    ],
+  );
+}
+
+export async function updateCallLog(
+  callId: string,
+  fields: Partial<Omit<CallLog, "id" | "call_id" | "created_at">>,
+): Promise<void> {
+  const db = await getDb();
+  const sets: string[] = [];
+  const values: unknown[] = [];
+
+  for (const [key, val] of Object.entries(fields)) {
+    if (val !== undefined) {
+      sets.push(`${key} = ?`);
+      values.push(val);
+    }
+  }
+  if (sets.length === 0) return;
+  values.push(callId);
+  await db.run(`UPDATE call_logs SET ${sets.join(", ")} WHERE call_id = ?`, values);
+}
+
+// ---------------------------------------------------------------------------
+// Reminders
+// ---------------------------------------------------------------------------
+
+export interface Reminder {
+  id: number;
+  task_id: number | null;
+  project_id: number | null;
+  message: string;
+  remind_at: string;
+  phone_number: string;
+  status: "pending" | "triggered" | "completed" | "failed" | "cancelled";
+  call_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function listReminders(opts?: { status?: string }): Promise<Reminder[]> {
+  const db = await getDb();
+  if (opts?.status) {
+    return await db.all<Reminder>(
+      "SELECT * FROM reminders WHERE status = ? ORDER BY remind_at ASC",
+      [opts.status],
+    );
+  }
+  return await db.all<Reminder>("SELECT * FROM reminders ORDER BY remind_at ASC");
+}
+
+export async function getReminder(id: number): Promise<Reminder | undefined> {
+  const db = await getDb();
+  return await db.get<Reminder>("SELECT * FROM reminders WHERE id = ?", [id]);
+}
+
+export async function createReminder(fields: {
+  task_id?: number | null;
+  project_id?: number | null;
+  message: string;
+  remind_at: string;
+  phone_number: string;
+}): Promise<number> {
+  const db = await getDb();
+  return await db.run(
+    `INSERT INTO reminders (task_id, project_id, message, remind_at, phone_number)
+     VALUES (?, ?, ?, ?, ?)`,
+    [
+      fields.task_id ?? null,
+      fields.project_id ?? null,
+      fields.message,
+      fields.remind_at,
+      fields.phone_number,
+    ],
+  );
+}
+
+export async function updateReminder(
+  id: number,
+  fields: Partial<Pick<Reminder, "message" | "remind_at" | "phone_number" | "status" | "call_id">>,
+): Promise<void> {
+  const db = await getDb();
+  const sets: string[] = [];
+  const values: unknown[] = [];
+
+  for (const [key, val] of Object.entries(fields)) {
+    if (val !== undefined) {
+      sets.push(`${key} = ?`);
+      values.push(val);
+    }
+  }
+  if (sets.length === 0) return;
+  sets.push("updated_at = datetime('now')");
+  values.push(id);
+  await db.run(`UPDATE reminders SET ${sets.join(", ")} WHERE id = ?`, values);
+}
+
+export async function deleteReminder(id: number): Promise<void> {
+  const db = await getDb();
+  await db.run("DELETE FROM reminders WHERE id = ?", [id]);
+}
+
+export async function listDueReminders(): Promise<Reminder[]> {
+  const db = await getDb();
+  return await db.all<Reminder>(
+    "SELECT * FROM reminders WHERE status = 'pending' AND remind_at <= datetime('now')",
+  );
+}

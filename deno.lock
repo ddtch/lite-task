@@ -2240,6 +2240,7 @@
       "npm:grammy@^1.36.1",
       "npm:openai@^4.96.0",
       "npm:preact@^10.27.2",
+      "npm:retell-client-js-sdk@2",
       "npm:tailwindcss@^4.1.10",
       "npm:vite@^7.1.3"
     ]

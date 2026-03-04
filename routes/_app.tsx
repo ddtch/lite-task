@@ -35,10 +35,13 @@ export default define.page(function App({ Component, url, state }) {
               currentProjectId={currentProjectId}
             />
 
-            <div class="ml-auto text-xs font-mono hidden sm:block" style="color: var(--green-faint); letter-spacing: .14em;">
-              SYS:ONLINE
-              <span class="ml-2" style="animation: blink 1.2s step-end infinite; display: inline-block;">█</span>
-            </div>
+            <a
+              href="/calls"
+              class="ml-auto text-xs font-mono hidden sm:flex items-center gap-2 hover:opacity-80 transition-opacity"
+              style={`color: ${url.pathname === "/calls" ? "var(--cyan)" : "var(--green-faint)"}; letter-spacing: .14em;`}
+            >
+              ◉ VOICE
+            </a>
           </div>
         </nav>
 

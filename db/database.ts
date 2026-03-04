@@ -118,6 +118,39 @@ const SCHEMA = `
     size INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS call_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    call_id TEXT NOT NULL UNIQUE,
+    call_type TEXT NOT NULL DEFAULT 'phone_call'
+      CHECK(call_type IN ('phone_call', 'web_call')),
+    direction TEXT NOT NULL DEFAULT 'inbound'
+      CHECK(direction IN ('inbound', 'outbound')),
+    from_number TEXT NOT NULL DEFAULT '',
+    to_number TEXT NOT NULL DEFAULT '',
+    duration_seconds INTEGER,
+    transcript TEXT,
+    call_status TEXT NOT NULL DEFAULT 'registered',
+    disconnection_reason TEXT,
+    started_at TEXT,
+    ended_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS reminders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER,
+    project_id INTEGER,
+    message TEXT NOT NULL,
+    remind_at TEXT NOT NULL,
+    phone_number TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending'
+      CHECK(status IN ('pending', 'triggered', 'completed', 'failed', 'cancelled')),
+    call_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL
   )`;
 
 async function initSchema(db: DbAdapter): Promise<void> {

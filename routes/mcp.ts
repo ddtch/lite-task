@@ -13,14 +13,11 @@
  *
  * Stateless mode: a fresh Server + Transport is created per request.
  * No session management required.
+ *
+ * NOTE: MCP SDK is imported lazily inside handleMcp() to avoid Vite SSR crash
+ * (ajv → json-schema-traverse is CommonJS and breaks Vite's ESM evaluator).
  */
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
 import { define } from "../utils.ts";
 import {
   createProject,
@@ -37,7 +34,7 @@ import {
 } from "../db/queries.ts";
 
 // ---------------------------------------------------------------------------
-// Tool definitions (same as mcp/server.ts)
+// Tool definitions
 // ---------------------------------------------------------------------------
 
 const TOOLS = [
@@ -183,7 +180,7 @@ const TOOLS = [
 ] as const;
 
 // ---------------------------------------------------------------------------
-// Helpers (same as mcp/server.ts)
+// Helpers
 // ---------------------------------------------------------------------------
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -203,11 +200,120 @@ function mimeFromFilename(filename: string): string {
   );
 }
 
+// deno-lint-ignore no-explicit-any
+async function handleToolCall(name: string, a: Record<string, unknown>): Promise<any> {
+  switch (name) {
+    case "list_projects": {
+      const projects = await listProjects();
+      return { content: [{ type: "text", text: JSON.stringify(projects, null, 2) }] };
+    }
+    case "create_project": {
+      const pName = String(a.name ?? "").trim();
+      if (!pName) throw new Error("name is required");
+      const id = await createProject(pName, String(a.description ?? "").trim());
+      return { content: [{ type: "text", text: JSON.stringify({ id, name: pName }, null, 2) }] };
+    }
+    case "get_project": {
+      const id = Number(a.id);
+      const project = await getProject(id);
+      if (!project) throw new Error(`Project ${id} not found`);
+      const tasks = await listAllTasks({ projectId: id });
+      return { content: [{ type: "text", text: JSON.stringify({ ...project, tasks }, null, 2) }] };
+    }
+    case "update_project": {
+      const id = Number(a.id);
+      const project = await getProject(id);
+      if (!project) throw new Error(`Project ${id} not found`);
+      const updName = String(a.name ?? "").trim();
+      if (!updName) throw new Error("name is required");
+      const desc = a.description !== undefined ? String(a.description).trim() : project.description;
+      await updateProject(id, updName, desc);
+      return { content: [{ type: "text", text: JSON.stringify({ id, name: updName, description: desc }, null, 2) }] };
+    }
+    case "delete_project": {
+      const id = Number(a.id);
+      if (!await getProject(id)) throw new Error(`Project ${id} not found`);
+      await deleteProject(id);
+      return { content: [{ type: "text", text: `Project ${id} deleted.` }] };
+    }
+    case "list_tasks": {
+      const tasks = await listAllTasks({
+        projectId: a.project_id ? Number(a.project_id) : undefined,
+        status: a.status ? String(a.status) : undefined,
+        priority: a.priority ? String(a.priority) : undefined,
+      });
+      return { content: [{ type: "text", text: JSON.stringify(tasks, null, 2) }] };
+    }
+    case "create_task": {
+      const title = String(a.title ?? "").trim();
+      if (!title) throw new Error("title is required");
+      const projectId = Number(a.project_id);
+      if (!projectId) throw new Error("project_id is required");
+      const validP = ["low", "medium", "high"];
+      const validS = ["todo", "in_progress", "done"];
+      const priority = validP.includes(String(a.priority)) ? (String(a.priority) as "low" | "medium" | "high") : "medium";
+      const status = validS.includes(String(a.status)) ? (String(a.status) as "todo" | "in_progress" | "done") : "todo";
+      const id = await createTask(projectId, title, String(a.description ?? "").trim(), priority, status);
+      return { content: [{ type: "text", text: JSON.stringify({ id, title, priority, status }, null, 2) }] };
+    }
+    case "get_task": {
+      const id = Number(a.id);
+      const task = await getTask(id);
+      if (!task) throw new Error(`Task ${id} not found`);
+      const attachments = await listAttachments(id);
+      return { content: [{ type: "text", text: JSON.stringify({ ...task, attachments }, null, 2) }] };
+    }
+    case "update_task": {
+      const id = Number(a.id);
+      if (!await getTask(id)) throw new Error(`Task ${id} not found`);
+      const validP = ["low", "medium", "high"];
+      const validS = ["todo", "in_progress", "done"];
+      await updateTask(id, {
+        ...(a.title !== undefined ? { title: String(a.title).trim() } : {}),
+        ...(a.description !== undefined ? { description: String(a.description).trim() } : {}),
+        ...(a.priority && validP.includes(String(a.priority)) ? { priority: String(a.priority) as "low" | "medium" | "high" } : {}),
+        ...(a.status && validS.includes(String(a.status)) ? { status: String(a.status) as "todo" | "in_progress" | "done" } : {}),
+      });
+      return { content: [{ type: "text", text: JSON.stringify(await getTask(id), null, 2) }] };
+    }
+    case "delete_task": {
+      const id = Number(a.id);
+      if (!await getTask(id)) throw new Error(`Task ${id} not found`);
+      await deleteTask(id);
+      return { content: [{ type: "text", text: `Task ${id} deleted.` }] };
+    }
+    case "get_attachment": {
+      const filename = String(a.filename ?? "").trim();
+      if (!filename) throw new Error("filename is required");
+      if (filename.includes("/") || filename.includes("\\") || filename.includes("..")) {
+        throw new Error("Invalid filename");
+      }
+      const bytes = await Deno.readFile(`data/uploads/${filename}`);
+      return { content: [{ type: "image", data: bytesToBase64(bytes), mimeType: mimeFromFilename(filename) }] };
+    }
+    default:
+      throw new Error(`Unknown tool: ${name}`);
+  }
+}
+
 // ---------------------------------------------------------------------------
-// Server factory — creates a fully wired MCP Server per request
+// Fresh route handler — lazy MCP SDK import to avoid Vite SSR crash
 // ---------------------------------------------------------------------------
 
-function buildServer(): Server {
+async function handleMcp(req: Request): Promise<Response> {
+  const { Server } = await import("@modelcontextprotocol/sdk/server/index.js");
+  const { WebStandardStreamableHTTPServerTransport } = await import(
+    "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js"
+  );
+  const { CallToolRequestSchema, ListToolsRequestSchema } = await import(
+    "@modelcontextprotocol/sdk/types.js"
+  );
+
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true,
+  });
+
   const server = new Server(
     { name: "lite-task", version: "1.0.0" },
     { capabilities: { tools: {} } },
@@ -215,134 +321,11 @@ function buildServer(): Server {
 
   server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: TOOLS }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (req) => {
-    const { name, arguments: args } = req.params;
+  server.setRequestHandler(CallToolRequestSchema, async (mcpReq) => {
+    const { name, arguments: args } = mcpReq.params;
     const a = (args ?? {}) as Record<string, unknown>;
-
     try {
-      switch (name) {
-        case "list_projects": {
-          const projects = await listProjects();
-          return { content: [{ type: "text", text: JSON.stringify(projects, null, 2) }] };
-        }
-
-        case "create_project": {
-          const pName = String(a.name ?? "").trim();
-          if (!pName) throw new Error("name is required");
-          const id = await createProject(pName, String(a.description ?? "").trim());
-          return { content: [{ type: "text", text: JSON.stringify({ id, name: pName }, null, 2) }] };
-        }
-
-        case "get_project": {
-          const id = Number(a.id);
-          const project = await getProject(id);
-          if (!project) throw new Error(`Project ${id} not found`);
-          const tasks = await listAllTasks({ projectId: id });
-          return {
-            content: [{ type: "text", text: JSON.stringify({ ...project, tasks }, null, 2) }],
-          };
-        }
-
-        case "update_project": {
-          const id = Number(a.id);
-          const project = await getProject(id);
-          if (!project) throw new Error(`Project ${id} not found`);
-          const name = String(a.name ?? "").trim();
-          if (!name) throw new Error("name is required");
-          const description = a.description !== undefined
-            ? String(a.description).trim()
-            : project.description;
-          await updateProject(id, name, description);
-          return { content: [{ type: "text", text: JSON.stringify({ id, name, description }, null, 2) }] };
-        }
-
-        case "delete_project": {
-          const id = Number(a.id);
-          if (!await getProject(id)) throw new Error(`Project ${id} not found`);
-          await deleteProject(id);
-          return { content: [{ type: "text", text: `Project ${id} deleted.` }] };
-        }
-
-        case "list_tasks": {
-          const tasks = await listAllTasks({
-            projectId: a.project_id ? Number(a.project_id) : undefined,
-            status: a.status ? String(a.status) : undefined,
-            priority: a.priority ? String(a.priority) : undefined,
-          });
-          return { content: [{ type: "text", text: JSON.stringify(tasks, null, 2) }] };
-        }
-
-        case "create_task": {
-          const title = String(a.title ?? "").trim();
-          if (!title) throw new Error("title is required");
-          const projectId = Number(a.project_id);
-          if (!projectId) throw new Error("project_id is required");
-          const validPriorities = ["low", "medium", "high"];
-          const validStatuses = ["todo", "in_progress", "done"];
-          const priority = validPriorities.includes(String(a.priority))
-            ? (String(a.priority) as "low" | "medium" | "high")
-            : "medium";
-          const status = validStatuses.includes(String(a.status))
-            ? (String(a.status) as "todo" | "in_progress" | "done")
-            : "todo";
-          const id = await createTask(projectId, title, String(a.description ?? "").trim(), priority, status);
-          return { content: [{ type: "text", text: JSON.stringify({ id, title, priority, status }, null, 2) }] };
-        }
-
-        case "get_task": {
-          const id = Number(a.id);
-          const task = await getTask(id);
-          if (!task) throw new Error(`Task ${id} not found`);
-          const attachments = await listAttachments(id);
-          return {
-            content: [{ type: "text", text: JSON.stringify({ ...task, attachments }, null, 2) }],
-          };
-        }
-
-        case "update_task": {
-          const id = Number(a.id);
-          if (!await getTask(id)) throw new Error(`Task ${id} not found`);
-          const validPriorities = ["low", "medium", "high"];
-          const validStatuses = ["todo", "in_progress", "done"];
-          await updateTask(id, {
-            ...(a.title !== undefined ? { title: String(a.title).trim() } : {}),
-            ...(a.description !== undefined ? { description: String(a.description).trim() } : {}),
-            ...(a.priority && validPriorities.includes(String(a.priority))
-              ? { priority: String(a.priority) as "low" | "medium" | "high" }
-              : {}),
-            ...(a.status && validStatuses.includes(String(a.status))
-              ? { status: String(a.status) as "todo" | "in_progress" | "done" }
-              : {}),
-          });
-          return { content: [{ type: "text", text: JSON.stringify(await getTask(id), null, 2) }] };
-        }
-
-        case "delete_task": {
-          const id = Number(a.id);
-          if (!await getTask(id)) throw new Error(`Task ${id} not found`);
-          await deleteTask(id);
-          return { content: [{ type: "text", text: `Task ${id} deleted.` }] };
-        }
-
-        case "get_attachment": {
-          const filename = String(a.filename ?? "").trim();
-          if (!filename) throw new Error("filename is required");
-          if (filename.includes("/") || filename.includes("\\") || filename.includes("..")) {
-            throw new Error("Invalid filename");
-          }
-          const bytes = await Deno.readFile(`data/uploads/${filename}`);
-          return {
-            content: [{
-              type: "image",
-              data: bytesToBase64(bytes),
-              mimeType: mimeFromFilename(filename),
-            }],
-          };
-        }
-
-        default:
-          throw new Error(`Unknown tool: ${name}`);
-      }
+      return await handleToolCall(name, a);
     } catch (err) {
       return {
         content: [{ type: "text", text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
@@ -351,19 +334,6 @@ function buildServer(): Server {
     }
   });
 
-  return server;
-}
-
-// ---------------------------------------------------------------------------
-// Fresh route handler — one transport + server per request (stateless)
-// ---------------------------------------------------------------------------
-
-async function handleMcp(req: Request): Promise<Response> {
-  const transport = new WebStandardStreamableHTTPServerTransport({
-    sessionIdGenerator: undefined, // stateless mode
-    enableJsonResponse: true,
-  });
-  const server = buildServer();
   await server.connect(transport);
   return transport.handleRequest(req);
 }
