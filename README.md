@@ -307,23 +307,23 @@ When lite-task and the AI tool run on the same machine, this mode skips HTTP ent
 ### Available MCP tools
 
 
-| Tool             | Description                                               |
-| ---------------- | --------------------------------------------------------- |
-| `list_projects`  | List all projects with task counts                        |
-| `create_project` | Create a new project                                      |
-| `get_project`    | Get a project with its tasks                              |
-| `delete_project` | Delete a project and all its tasks                        |
-| `list_tasks`     | List tasks — filter by `project_id`, `status`, `priority` |
-| `create_task`    | Create a task in a project                                |
-| `get_task`       | Get task details including attachments                    |
-| `update_task`    | Update title, description, status, or priority            |
-| `delete_task`    | Delete a task                                             |
-| `get_attachment` | Download an attachment image and return it as base64      |
-| `list_events`   | List calendar events — filter by `month`, `project_id`    |
-| `create_event`  | Create a calendar event, note, or reminder (+ `notify_call` for phone reminder) |
-| `get_event`     | Get a calendar event by ID                                |
-| `update_event`  | Update event fields including `notify_call`               |
-| `delete_event`  | Delete a calendar event                                   |
+| Tool             | Description                                                                     |
+| ---------------- | ------------------------------------------------------------------------------- |
+| `list_projects`  | List all projects with task counts                                              |
+| `create_project` | Create a new project                                                            |
+| `get_project`    | Get a project with its tasks                                                    |
+| `delete_project` | Delete a project and all its tasks                                              |
+| `list_tasks`     | List tasks — filter by `project_id`, `status`, `priority`                       |
+| `create_task`    | Create a task in a project                                                      |
+| `get_task`       | Get task details including attachments                                          |
+| `update_task`    | Update title, description, status, or priority                                  |
+| `delete_task`    | Delete a task                                                                   |
+| `get_attachment` | Download an attachment image and return it as base64                            |
+| `list_events`    | List calendar events — filter by `month`, `project_id`                          |
+| `create_event`   | Create a calendar event, note, or reminder (+ `notify_call` for phone reminder) |
+| `get_event`      | Get a calendar event by ID                                                      |
+| `update_event`   | Update event fields including `notify_call`                                     |
+| `delete_event`   | Delete a calendar event                                                         |
 
 
 ---
@@ -744,20 +744,20 @@ task-light/
 ## Deno tasks
 
 
-| Task                       | What it does                                         |
-| -------------------------- | ---------------------------------------------------- |
-| `deno task dev`            | Dev server with HMR on port 8011                     |
-| `deno task build`          | Build for production → `_fresh/`                     |
-| `deno task start`          | Serve production build on port 8011                  |
-| `deno task preview`        | Build + serve in one command (useful in Arc browser) |
-| `deno task bot`            | Run the Telegram bot (reads `.env`)                  |
-| `deno task mcp`            | MCP server — direct SQLite access                    |
-| `deno task mcp:http`       | MCP server — HTTP client mode                        |
-| `deno task compile-mcp`    | Compile MCP HTTP client to a standalone binary       |
-| `deno task calls:setup`    | Create Retell AI voice agent (one-time setup)        |
-| `deno task calls:update-url` | Update Retell webhook URLs after ngrok restart     |
-| `deno task calls:scheduler` | Run reminder scheduler for outbound calls          |
-| `deno task events:scheduler` | Run event notification scheduler (Telegram + calls) |
+| Task                         | What it does                                         |
+| ---------------------------- | ---------------------------------------------------- |
+| `deno task dev`              | Dev server with HMR on port 8011                     |
+| `deno task build`            | Build for production → `_fresh/`                     |
+| `deno task start`            | Serve production build on port 8011                  |
+| `deno task preview`          | Build + serve in one command (useful in Arc browser) |
+| `deno task bot`              | Run the Telegram bot (reads `.env`)                  |
+| `deno task mcp`              | MCP server — direct SQLite access                    |
+| `deno task mcp:http`         | MCP server — HTTP client mode                        |
+| `deno task compile-mcp`      | Compile MCP HTTP client to a standalone binary       |
+| `deno task calls:setup`      | Create Retell AI voice agent (one-time setup)        |
+| `deno task calls:update-url` | Update Retell webhook URLs after ngrok restart       |
+| `deno task calls:scheduler`  | Run reminder scheduler for outbound calls            |
+| `deno task events:scheduler` | Run event notification scheduler (Telegram + calls)  |
 
 
 ---
