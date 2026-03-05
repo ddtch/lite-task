@@ -84,6 +84,8 @@ export default function Calendar({ events: initialEvents }: Props) {
   const formType = useSignal<"event" | "note" | "reminder">("event");
   const formTime = useSignal("");
   const formNotifyCall = useSignal(false);
+  const formRemindBefore = useSignal(10);
+  const formRemindInterval = useSignal<string | null>(null);
   const formSaving = useSignal(false);
 
   useEffect(() => {
@@ -242,6 +244,8 @@ export default function Calendar({ events: initialEvents }: Props) {
           event_time: formTime.value || null,
           type: formType.value,
           notify_call: formNotifyCall.value,
+          remind_before: formRemindBefore.value,
+          remind_interval: formRemindInterval.value,
         }),
       });
       if (res.ok) {
@@ -268,6 +272,8 @@ export default function Calendar({ events: initialEvents }: Props) {
     formType.value = ev.type;
     formTime.value = ev.event_time ?? "";
     formNotifyCall.value = ev.notify_call === 1;
+    formRemindBefore.value = ev.remind_before ?? 10;
+    formRemindInterval.value = ev.remind_interval ?? null;
     editingEvent.value = ev;
     showForm.value = true;
   }
@@ -278,6 +284,8 @@ export default function Calendar({ events: initialEvents }: Props) {
     formType.value = "event";
     formTime.value = "";
     formNotifyCall.value = false;
+    formRemindBefore.value = 10;
+    formRemindInterval.value = null;
     editingEvent.value = null;
     showForm.value = false;
   }
@@ -297,6 +305,8 @@ export default function Calendar({ events: initialEvents }: Props) {
           event_time: formTime.value || null,
           type: formType.value,
           notify_call: formNotifyCall.value,
+          remind_before: formRemindBefore.value,
+          remind_interval: formRemindInterval.value,
         }),
       });
       if (res.ok) {
@@ -411,18 +421,49 @@ export default function Calendar({ events: initialEvents }: Props) {
                       style="font-size:.82rem; padding: 5px 8px;"
                     />
                     {formTime.value && (
-                      <label
-                        class="flex items-center gap-2"
-                        style="font-family:'VT323',monospace; font-size:.82rem; color:var(--green-dim); cursor:pointer;"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={formNotifyCall.value}
-                          onChange={(e) => (formNotifyCall.value = (e.target as HTMLInputElement).checked)}
-                          style="accent-color: var(--green);"
-                        />
-                        CALL ME BEFORE EVENT
-                      </label>
+                      <div class="flex flex-col gap-2" style="font-family:'VT323',monospace; font-size:.82rem; color:var(--green-dim);">
+                        <div class="flex items-center gap-2">
+                          <span style="white-space:nowrap;">REMIND ME:</span>
+                          <select
+                            value={formRemindBefore.value}
+                            onChange={(e) => (formRemindBefore.value = Number((e.target as HTMLSelectElement).value))}
+                            class="t-input t-select"
+                            style="font-size:.78rem; padding: 3px 6px; flex:1;"
+                          >
+                            <option value={5}>5 MIN</option>
+                            <option value={10}>10 MIN</option>
+                            <option value={30}>30 MIN</option>
+                            <option value={60}>1 HOUR</option>
+                            <option value={1440}>1 DAY</option>
+                            <option value={2880}>2 DAYS</option>
+                          </select>
+                        </div>
+                        <label class="flex items-center gap-2" style="cursor:pointer;">
+                          <input
+                            type="checkbox"
+                            checked={formNotifyCall.value}
+                            onChange={(e) => (formNotifyCall.value = (e.target as HTMLInputElement).checked)}
+                            style="accent-color: var(--green);"
+                          />
+                          ALSO CALL ME
+                        </label>
+                        <div class="flex items-center gap-2">
+                          <span style="white-space:nowrap;">REPEAT:</span>
+                          <select
+                            value={formRemindInterval.value ?? ""}
+                            onChange={(e) => {
+                              const v = (e.target as HTMLSelectElement).value;
+                              formRemindInterval.value = v || null;
+                            }}
+                            class="t-input t-select"
+                            style="font-size:.78rem; padding: 3px 6px; flex:1;"
+                          >
+                            <option value="">ONE-TIME</option>
+                            <option value="hourly">REPEAT HOURLY</option>
+                            <option value="daily">REPEAT DAILY</option>
+                          </select>
+                        </div>
+                      </div>
                     )}
                     <div class="flex gap-2">
                       <button
@@ -472,6 +513,12 @@ export default function Calendar({ events: initialEvents }: Props) {
                             {ev.event_time && (
                               <span style="font-size:.72rem; color:var(--green-mute); font-family:'VT323',monospace;">
                                 {formatTime12h(ev.event_time)}
+                              </span>
+                            )}
+                            {ev.event_time && (
+                              <span class="t-badge" style="font-size:.6rem; padding: 0 3px; background:rgba(255,255,255,.08); color:var(--green-mute);">
+                                {ev.remind_before >= 1440 ? `${ev.remind_before / 1440}D` : ev.remind_before >= 60 ? `${ev.remind_before / 60}HR` : `${ev.remind_before}MIN`}
+                                {ev.remind_interval ? ` ↻${ev.remind_interval === "daily" ? "DAILY" : "HOURLY"}` : ""}
                               </span>
                             )}
                             {ev.notify_call === 1 && (

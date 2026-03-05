@@ -211,6 +211,10 @@ export function getDb(): Promise<DbAdapter> {
       "ALTER TABLE events ADD COLUMN notify_call INTEGER NOT NULL DEFAULT 0",
       "ALTER TABLE events ADD COLUMN notified_telegram INTEGER NOT NULL DEFAULT 0",
       "ALTER TABLE events ADD COLUMN notified_call INTEGER NOT NULL DEFAULT 0",
+      "ALTER TABLE events ADD COLUMN remind_before INTEGER NOT NULL DEFAULT 10",
+      "ALTER TABLE events ADD COLUMN remind_interval TEXT DEFAULT NULL",
+      "ALTER TABLE events ADD COLUMN last_notified_at TEXT DEFAULT NULL",
+      "ALTER TABLE tasks ADD COLUMN due_date TEXT DEFAULT NULL",
     ];
     for (const sql of migrations) {
       try { await adapter.run(sql); } catch { /* column already exists */ }

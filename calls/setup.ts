@@ -21,14 +21,18 @@ if (!Deno.env.get("RETELL_API_KEY")) {
   Deno.exit(1);
 }
 
-console.log(`[setup] Creating Retell LLM with tools pointing to ${APP_BASE_URL}...`);
+const BEGIN_MESSAGE = "Hey! It's your lite-task assistant.";
 
-const tools = buildRetellTools(APP_BASE_URL);
-
-const llm = await createRetellLlm({
-  generalPrompt: `You are a voice assistant for lite-task, a task management app.
+function buildGeneralPrompt(): string {
+  return `You are a voice assistant for lite-task, a task management app.
 You help users manage their projects and tasks through voice commands.
 You can create tasks, list tasks, update task status, set reminders, and give summaries.
+
+## Outbound Reminder Calls
+When {{reminder_message}} is provided, this is an outbound reminder call.
+Your FIRST response after the greeting must immediately deliver the reminder:
+"I'm calling to remind you: {{reminder_message}}. Is there anything else I can help with?"
+Do NOT ask generic questions first — deliver the reminder immediately.
 
 Rules:
 - Be concise and conversational — this is a phone call, not a text chat.
@@ -39,9 +43,16 @@ Rules:
 - When listing tasks, summarize instead of reading every detail.
 - For status, use: "todo", "in_progress", or "done".
 - For priority, use: "low", "medium", or "high".
-- Today's date: ${new Date().toISOString().split("T")[0]}`,
-  beginMessage:
-    "Hi! I'm your task manager assistant. How can I help you today?",
+- Today's date: ${new Date().toISOString().split("T")[0]}`;
+}
+
+console.log(`[setup] Creating Retell LLM with tools pointing to ${APP_BASE_URL}...`);
+
+const tools = buildRetellTools(APP_BASE_URL);
+
+const llm = await createRetellLlm({
+  generalPrompt: buildGeneralPrompt(),
+  beginMessage: BEGIN_MESSAGE,
   tools,
 });
 

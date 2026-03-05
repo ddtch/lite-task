@@ -15,8 +15,10 @@ import { createPhoneCall } from "./retell.ts";
 import {
   listDueEventsCall,
   listDueEventsTelegram,
+  listDueRecurring,
   markEventNotifiedCall,
   markEventNotifiedTelegram,
+  markEventRecurringNotified,
 } from "../db/queries.ts";
 
 const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
@@ -54,7 +56,7 @@ async function checkTelegramNotifications() {
 
   for (const event of due) {
     try {
-      const msg = `Hey, your event "${event.title}" starts in 10 minutes! (${event.event_date} ${event.event_time})`;
+      const msg = `Hey, your event "${event.title}" starts in ${event.remind_before} minutes! (${event.event_date} ${event.event_time})`;
       await sendTelegramMessage(msg);
       await markEventNotifiedTelegram(event.id);
       console.log(`[event-scheduler] Telegram sent for event ${event.id}: ${event.title}`);
@@ -79,7 +81,7 @@ async function checkCallNotifications() {
         toNumber: REMINDER_TO_NUMBER,
         agentId: RETELL_AGENT_ID,
         dynamicVariables: {
-          reminder_message: `Your event "${event.title}" starts in 5 minutes.`,
+          reminder_message: `Your event "${event.title}" starts in ${event.remind_before} minutes.`,
           event_id: String(event.id),
         },
       });
@@ -91,6 +93,47 @@ async function checkCallNotifications() {
   }
 }
 
+async function checkRecurringNotifications() {
+  const due = await listDueRecurring();
+  if (due.length === 0) return;
+
+  const now = Date.now();
+
+  for (const event of due) {
+    const intervalMinutes = event.remind_interval === "daily" ? 1440 : 60;
+
+    if (event.last_notified_at) {
+      const lastParts = event.last_notified_at.replace("T", "-").replace(":", "-").split("-").map(Number);
+      const lastDate = new Date(lastParts[0], lastParts[1] - 1, lastParts[2], lastParts[3] ?? 0, lastParts[4] ?? 0);
+      const elapsedMin = (now - lastDate.getTime()) / 60_000;
+      if (elapsedMin < intervalMinutes) continue;
+    }
+
+    try {
+      const msg = `Recurring reminder: your event "${event.title}" is on ${event.event_date} at ${event.event_time}.`;
+      await sendTelegramMessage(msg);
+      console.log(`[event-scheduler] Recurring Telegram sent for event ${event.id}: ${event.title}`);
+
+      if (event.notify_call === 1 && RETELL_AGENT_ID && RETELL_FROM_NUMBER && REMINDER_TO_NUMBER) {
+        const call = await createPhoneCall({
+          fromNumber: RETELL_FROM_NUMBER,
+          toNumber: REMINDER_TO_NUMBER,
+          agentId: RETELL_AGENT_ID,
+          dynamicVariables: {
+            reminder_message: `Recurring reminder: your event "${event.title}" is on ${event.event_date} at ${event.event_time}.`,
+            event_id: String(event.id),
+          },
+        });
+        console.log(`[event-scheduler] Recurring call triggered for event ${event.id}: ${call.call_id}`);
+      }
+
+      await markEventRecurringNotified(event.id);
+    } catch (err) {
+      console.error(`[event-scheduler] Recurring notification failed for event ${event.id}:`, err);
+    }
+  }
+}
+
 async function check() {
   try {
     const now = new Date();
@@ -98,6 +141,7 @@ async function check() {
     console.log(`[event-scheduler] Checking at ${local} (TZ: ${Intl.DateTimeFormat().resolvedOptions().timeZone})`);
     await checkTelegramNotifications();
     await checkCallNotifications();
+    await checkRecurringNotifications();
   } catch (err) {
     console.error("[event-scheduler] Error:", err);
   }

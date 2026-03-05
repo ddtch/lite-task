@@ -23,6 +23,7 @@ export const handler = define.handlers({
       description?: string;
       priority?: string;
       status?: string;
+      due_date?: string | null;
     };
     try {
       body = await ctx.req.json();
@@ -47,12 +48,14 @@ export const handler = define.handlers({
       ? (body.status as "todo" | "in_progress" | "done")
       : "todo";
 
+    const dueDate = body.due_date !== undefined ? (body.due_date || null) : null;
     const id = await createTask(
       body.project_id,
       title,
       body.description?.trim() ?? "",
       priority,
       status,
+      dueDate,
     );
     return Response.json({ id, title, priority, status }, { status: 201 });
   },

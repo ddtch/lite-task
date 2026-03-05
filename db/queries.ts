@@ -44,6 +44,7 @@ export interface Task {
   description: string;
   priority: "low" | "medium" | "high";
   status: "todo" | "in_progress" | "done";
+  due_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -164,22 +165,23 @@ export async function createTask(
   description: string,
   priority: Task["priority"],
   status: Task["status"],
+  dueDate?: string | null,
 ): Promise<number> {
   const db = await getDb();
   return await db.run(
-    `INSERT INTO tasks (project_id, title, description, priority, status)
-     VALUES (?, ?, ?, ?, ?)`,
-    [projectId, title, description, priority, status],
+    `INSERT INTO tasks (project_id, title, description, priority, status, due_date)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [projectId, title, description, priority, status, dueDate ?? null],
   );
 }
 
 export async function updateTask(
   id: number,
-  fields: Partial<Pick<Task, "title" | "description" | "priority" | "status">>,
+  fields: Partial<Pick<Task, "title" | "description" | "priority" | "status" | "due_date">>,
 ): Promise<void> {
   const db = await getDb();
   const sets: string[] = [];
-  const values: (string | number)[] = [];
+  const values: (string | number | null)[] = [];
 
   if (fields.title !== undefined) { sets.push("title = ?"); values.push(fields.title); }
   if (fields.description !== undefined) {
@@ -188,6 +190,7 @@ export async function updateTask(
   }
   if (fields.priority !== undefined) { sets.push("priority = ?"); values.push(fields.priority); }
   if (fields.status !== undefined) { sets.push("status = ?"); values.push(fields.status); }
+  if (fields.due_date !== undefined) { sets.push("due_date = ?"); values.push(fields.due_date ?? null); }
 
   if (sets.length === 0) return;
   sets.push("updated_at = datetime('now')");
@@ -410,6 +413,9 @@ export interface CalendarEvent {
   notify_call: number;
   notified_telegram: number;
   notified_call: number;
+  remind_before: number;
+  remind_interval: string | null;
+  last_notified_at: string | null;
   created_at: string;
 }
 
@@ -450,11 +456,15 @@ export async function createEvent(fields: {
   type?: CalendarEvent["type"];
   project_id?: number | null;
   notify_call?: boolean;
+  remind_before?: number;
+  remind_interval?: string | null;
 }): Promise<number> {
   const db = await getDb();
+  const remindBefore = fields.remind_before ?? 10;
+  const remindInterval = fields.remind_interval ?? null;
   const id = await db.run(
-    `INSERT INTO events (title, description, event_date, event_time, type, project_id, notify_call)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO events (title, description, event_date, event_time, type, project_id, notify_call, remind_before, remind_interval)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       fields.title,
       fields.description ?? "",
@@ -463,14 +473,17 @@ export async function createEvent(fields: {
       fields.type ?? "event",
       fields.project_id ?? null,
       fields.notify_call ? 1 : 0,
+      remindBefore,
+      remindInterval,
     ],
   );
 
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const timeStr = fields.event_time ? ` ${fields.event_time}` : "";
   const notifyParts: string[] = [];
-  if (fields.event_time) notifyParts.push("telegram 10min before");
-  if (fields.notify_call) notifyParts.push("phone call 5min before");
+  if (fields.event_time) notifyParts.push(`telegram ${remindBefore}min before`);
+  if (fields.notify_call) notifyParts.push(`phone call ${remindBefore}min before`);
+  if (remindInterval) notifyParts.push(`recurring: ${remindInterval}`);
   const notifyStr = notifyParts.length > 0 ? ` | notifications: ${notifyParts.join(", ")}` : " | no notifications (no time set)";
   console.log(`[events] Created #${id} "${fields.title}" → ${fields.event_date}${timeStr} (${tz})${notifyStr}`);
 
@@ -479,7 +492,7 @@ export async function createEvent(fields: {
 
 export async function updateEvent(
   id: number,
-  fields: Partial<Pick<CalendarEvent, "title" | "description" | "event_date" | "event_time" | "type" | "project_id" | "notify_call">>,
+  fields: Partial<Pick<CalendarEvent, "title" | "description" | "event_date" | "event_time" | "type" | "project_id" | "notify_call" | "notified_telegram" | "notified_call" | "remind_before" | "remind_interval" | "last_notified_at">>,
 ): Promise<void> {
   const db = await getDb();
   const sets: string[] = [];
@@ -515,7 +528,8 @@ export async function listDueEventsTelegram(): Promise<CalendarEvent[]> {
     `SELECT * FROM events
      WHERE event_time IS NOT NULL
        AND notified_telegram = 0
-       AND datetime(event_date || 'T' || event_time) <= datetime(?, '+10 minutes')
+       AND remind_interval IS NULL
+       AND datetime(event_date || 'T' || event_time) <= datetime(?, '+' || remind_before || ' minutes')
        AND datetime(event_date || 'T' || event_time) >= datetime(?)`,
     [now, now],
   );
@@ -529,7 +543,8 @@ export async function listDueEventsCall(): Promise<CalendarEvent[]> {
      WHERE event_time IS NOT NULL
        AND notify_call = 1
        AND notified_call = 0
-       AND datetime(event_date || 'T' || event_time) <= datetime(?, '+5 minutes')
+       AND remind_interval IS NULL
+       AND datetime(event_date || 'T' || event_time) <= datetime(?, '+' || remind_before || ' minutes')
        AND datetime(event_date || 'T' || event_time) >= datetime(?)`,
     [now, now],
   );
@@ -543,4 +558,24 @@ export async function markEventNotifiedTelegram(id: number): Promise<void> {
 export async function markEventNotifiedCall(id: number): Promise<void> {
   const db = await getDb();
   await db.run("UPDATE events SET notified_call = 1 WHERE id = ?", [id]);
+}
+
+/** Find recurring events within their remind_before window that need re-notification */
+export async function listDueRecurring(): Promise<CalendarEvent[]> {
+  const db = await getDb();
+  const now = localNow();
+  return await db.all<CalendarEvent>(
+    `SELECT * FROM events
+     WHERE event_time IS NOT NULL
+       AND remind_interval IS NOT NULL
+       AND datetime(event_date || 'T' || event_time) <= datetime(?, '+' || remind_before || ' minutes')
+       AND datetime(event_date || 'T' || event_time) >= datetime(?)`,
+    [now, now],
+  );
+}
+
+export async function markEventRecurringNotified(id: number): Promise<void> {
+  const db = await getDb();
+  const now = localNow();
+  await db.run("UPDATE events SET last_notified_at = ? WHERE id = ?", [now, id]);
 }

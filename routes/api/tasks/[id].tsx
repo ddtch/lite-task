@@ -25,6 +25,7 @@ export const handler = define.handlers({
       description?: string;
       priority?: string;
       status?: string;
+      due_date?: string | null;
     };
     try {
       body = await ctx.req.json();
@@ -44,6 +45,7 @@ export const handler = define.handlers({
       ...(body.status && validStatuses.includes(body.status)
         ? { status: body.status as "todo" | "in_progress" | "done" }
         : {}),
+      ...(body.due_date !== undefined ? { due_date: body.due_date || null } : {}),
     });
 
     return Response.json({ ...await getTask(id) });

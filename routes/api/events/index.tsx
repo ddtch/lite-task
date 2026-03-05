@@ -21,6 +21,8 @@ export const handler = define.handlers({
       type?: string;
       project_id?: number | null;
       notify_call?: boolean;
+      remind_before?: number;
+      remind_interval?: string | null;
     };
     try {
       body = await ctx.req.json();
@@ -41,6 +43,11 @@ export const handler = define.handlers({
       ? (body.type as "event" | "note" | "reminder")
       : "event";
 
+    const validIntervals = ["hourly", "daily"];
+    const remindInterval = validIntervals.includes(body.remind_interval ?? "")
+      ? body.remind_interval!
+      : null;
+
     const id = await createEvent({
       title,
       description: body.description?.trim(),
@@ -49,6 +56,8 @@ export const handler = define.handlers({
       type,
       project_id: body.project_id ?? null,
       notify_call: body.notify_call ?? false,
+      remind_before: body.remind_before ?? 10,
+      remind_interval: remindInterval,
     });
 
     return Response.json({ id, title, event_date: body.event_date, type }, { status: 201 });

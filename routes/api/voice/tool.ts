@@ -142,14 +142,17 @@ export const handler = define.handlers({
             ? (args.priority as Task["priority"])
             : "medium";
 
+          const dueDate = args.due_date ? String(args.due_date).trim() : null;
           const id = await createTask(
             proj.id,
             title,
             String(args.description ?? ""),
             priority,
             "todo",
+            dueDate,
           );
-          result = `Task "${title}" created in project "${proj.name}" with ${priority} priority (ID: ${id}).`;
+          const dueStr = dueDate ? `, due ${dueDate}` : "";
+          result = `Task "${title}" created in project "${proj.name}" with ${priority} priority${dueStr} (ID: ${id}).`;
           break;
         }
 
@@ -274,6 +277,8 @@ export const handler = define.handlers({
             event_time: args.event_time ? String(args.event_time) : null,
             type,
             notify_call: Boolean(args.notify_call),
+            remind_before: args.remind_before ? Number(args.remind_before) : undefined,
+            remind_interval: args.remind_interval ? String(args.remind_interval) : undefined,
           });
 
           const timeStr = args.event_time ? ` at ${args.event_time}` : "";
@@ -305,6 +310,10 @@ export const handler = define.handlers({
             if (validTypes.includes(String(args.type))) fields.type = args.type;
           }
           if (args.notify_call !== undefined) fields.notify_call = args.notify_call ? 1 : 0;
+          if (args.remind_before !== undefined) fields.remind_before = Number(args.remind_before);
+          if (args.remind_interval !== undefined) {
+            fields.remind_interval = args.remind_interval === "none" ? null : String(args.remind_interval);
+          }
 
           await updateEvent(event.id, fields);
           result = `Event "${event.title}" updated.`;

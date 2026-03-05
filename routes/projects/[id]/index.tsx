@@ -186,21 +186,29 @@ const TaskGroup = (
   );
 };
 
-const TaskRow = ({ task, projectId }: { task: Task; projectId: number }) => (
-  <a href={`/projects/${projectId}/tasks/${task.id}`} class="t-row">
-    <div class="flex-1 min-w-0">
-      <span class="block truncate" style="color: var(--green-dim); font-size:.9rem;">
-        {task.title}
-      </span>
-      {task.description && (
-        <span class="block truncate mt-0.5" style="font-size:.78rem; color: var(--green-faint);">
-          {task.description}
+const TaskRow = ({ task, projectId }: { task: Task; projectId: number }) => {
+  const isOverdue = task.due_date && task.status !== "done" && task.due_date < new Date().toISOString().split("T")[0];
+  return (
+    <a href={`/projects/${projectId}/tasks/${task.id}`} class="t-row">
+      <div class="flex-1 min-w-0">
+        <span class="block truncate" style="color: var(--green-dim); font-size:.9rem;">
+          {task.title}
         </span>
-      )}
-    </div>
-    <div class="flex items-center gap-2 shrink-0">
-      <PriorityBadge priority={task.priority} />
-      <StatusBadge status={task.status} />
-    </div>
-  </a>
-);
+        {task.description && (
+          <span class="block truncate mt-0.5" style="font-size:.78rem; color: var(--green-faint);">
+            {task.description}
+          </span>
+        )}
+        {task.due_date && (
+          <span class="block mt-0.5" style={`font-size:.72rem; letter-spacing:.1em; ${isOverdue ? "color: var(--red);" : "color: var(--green-faint);"}`}>
+            DUE: {task.due_date}{isOverdue ? " [OVERDUE]" : ""}
+          </span>
+        )}
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <PriorityBadge priority={task.priority} />
+        <StatusBadge status={task.status} />
+      </div>
+    </a>
+  );
+};

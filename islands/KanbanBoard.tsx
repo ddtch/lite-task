@@ -8,6 +8,7 @@ interface Task {
   description?: string | null;
   status: Status;
   priority: Priority;
+  due_date?: string | null;
 }
 
 interface Props {
@@ -143,6 +144,14 @@ const KanbanCard = (
           {task.description}
         </p>
       )}
+      {task.due_date && (() => {
+        const isOverdue = task.status !== "done" && task.due_date! < new Date().toISOString().split("T")[0];
+        return (
+          <p class="mb-2" style={`font-size:.7rem; letter-spacing:.1em; ${isOverdue ? "color: var(--red);" : "color: var(--green-faint);"}`}>
+            DUE: {task.due_date}{isOverdue ? " [OVERDUE]" : ""}
+          </p>
+        );
+      })()}
       <PriorityBadge priority={task.priority} />
     </a>
   </div>

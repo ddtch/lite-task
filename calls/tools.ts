@@ -74,6 +74,10 @@ export function buildRetellTools(baseUrl: string): RetellTool[] {
             enum: ["low", "medium", "high"],
             description: "Priority level, defaults to medium",
           },
+          due_date: {
+            type: "string",
+            description: "Due date in YYYY-MM-DD format (optional)",
+          },
         },
         required: ["title", "project_name"],
       },
@@ -174,7 +178,7 @@ export function buildRetellTools(baseUrl: string): RetellTool[] {
       type: "custom",
       name: "create_event",
       description:
-        "Create a calendar event, note, or reminder. Timed events automatically get a Telegram notification 10 min before. Set notify_call to true for a phone call 5 min before.",
+        "Create a calendar event, note, or reminder. Timed events get a notification before the event (default 10 min). Set remind_before to choose timing. Set remind_interval for recurring reminders.",
       url,
       method: "POST",
       parameters: {
@@ -193,6 +197,8 @@ export function buildRetellTools(baseUrl: string): RetellTool[] {
             type: "boolean",
             description: "Set to true to get a phone call reminder 5 minutes before the event",
           },
+          remind_before: { type: "number", description: "Minutes before event to notify (5, 10, 30, 60, 1440, 2880). Default: 10" },
+          remind_interval: { type: "string", enum: ["hourly", "daily"], description: "Repeat reminders at this interval" },
         },
         required: ["title", "event_date"],
       },
@@ -220,6 +226,8 @@ export function buildRetellTools(baseUrl: string): RetellTool[] {
           description: { type: "string", description: "New description" },
           type: { type: "string", enum: ["event", "note", "reminder"] },
           notify_call: { type: "boolean", description: "Enable/disable phone call reminder" },
+          remind_before: { type: "number", description: "Minutes before event to notify" },
+          remind_interval: { type: "string", enum: ["hourly", "daily"], description: "Set recurring interval or 'none' to clear" },
         },
         required: ["event_title"],
       },

@@ -42,6 +42,20 @@ export const handler = define.handlers({
     if (body.notify_call !== undefined) {
       fields.notify_call = body.notify_call ? 1 : 0;
     }
+    if (body.remind_before !== undefined) {
+      fields.remind_before = Number(body.remind_before);
+    }
+    if (body.remind_interval !== undefined) {
+      const validIntervals = ["hourly", "daily"];
+      fields.remind_interval = validIntervals.includes(String(body.remind_interval))
+        ? String(body.remind_interval)
+        : null;
+    }
+
+    // Reset notification state so notifications re-fire with new timing
+    fields.notified_telegram = 0;
+    fields.notified_call = 0;
+    fields.last_notified_at = null;
 
     await updateEvent(id, fields);
     const updated = await getEvent(id);

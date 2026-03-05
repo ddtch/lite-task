@@ -136,6 +136,10 @@ const TOOL_SPECS: ToolSpec[] = [
         enum: ["todo", "in_progress", "done"],
         description: "Status (default: todo)",
       },
+      due_date: {
+        type: "string",
+        description: "Due date in YYYY-MM-DD format (optional)",
+      },
     },
     required: ["project_id", "title"],
   },
@@ -150,7 +154,7 @@ const TOOL_SPECS: ToolSpec[] = [
   {
     name: "update_task",
     description:
-      "Update a task's title, description, status, or priority. Only provided fields are updated.",
+      "Update a task's title, description, status, priority, or due_date. Only provided fields are updated.",
     properties: {
       id: { type: "number", description: "Task ID (required)" },
       title: { type: "string", description: "New title" },
@@ -164,6 +168,10 @@ const TOOL_SPECS: ToolSpec[] = [
         type: "string",
         enum: ["low", "medium", "high"],
         description: "New priority",
+      },
+      due_date: {
+        type: "string",
+        description: "Due date in YYYY-MM-DD format, or null to clear",
       },
     },
     required: ["id"],
@@ -198,7 +206,7 @@ const TOOL_SPECS: ToolSpec[] = [
   {
     name: "create_event",
     description:
-      "Create a calendar event, note, or reminder. Timed events get a Telegram notification 10 min before. Set notify_call to also get a phone call 5 min before.",
+      "Create a calendar event, note, or reminder. Timed events get a notification before the event (default 10 min). Set remind_before to choose timing (5, 10, 30, 60, 1440, 2880 minutes). Set remind_interval for recurring reminders.",
     properties: {
       title: { type: "string", description: "Event title (required)" },
       description: { type: "string", description: "Optional description" },
@@ -211,6 +219,8 @@ const TOOL_SPECS: ToolSpec[] = [
       },
       project_id: { type: "number", description: "Link to a project (optional)" },
       notify_call: { type: "boolean", description: "Enable phone call reminder 5 min before event (requires event_time)" },
+      remind_before: { type: "number", description: "Minutes before event to notify (5, 10, 30, 60, 1440, 2880). Default: 10" },
+      remind_interval: { type: "string", enum: ["hourly", "daily"], description: "Repeat reminder at this interval until the event (optional)" },
     },
     required: ["title", "event_date"],
   },
@@ -234,6 +244,8 @@ const TOOL_SPECS: ToolSpec[] = [
       type: { type: "string", enum: ["event", "note", "reminder"] },
       project_id: { type: "number", description: "Project ID or null to unlink" },
       notify_call: { type: "boolean", description: "Enable/disable phone call reminder" },
+      remind_before: { type: "number", description: "Minutes before event to notify" },
+      remind_interval: { type: "string", enum: ["hourly", "daily"], description: "Set recurring interval or null to clear" },
     },
     required: ["id"],
   },
@@ -364,6 +376,7 @@ export async function executeTool(
         description: String(args.description ?? "").trim(),
         priority: args.priority ?? "medium",
         status: args.status ?? "todo",
+        due_date: args.due_date ? String(args.due_date).trim() : null,
       });
       return JSON.stringify(data, null, 2);
     }
@@ -383,6 +396,7 @@ export async function executeTool(
       }
       if (args.status !== undefined) payload.status = args.status;
       if (args.priority !== undefined) payload.priority = args.priority;
+      if (args.due_date !== undefined) payload.due_date = args.due_date === null ? null : String(args.due_date).trim() || null;
       const data = await api("PUT", `/api/tasks/${id}`, payload);
       return JSON.stringify(data, null, 2);
     }
@@ -439,6 +453,8 @@ export async function executeTool(
         type: args.type ?? "event",
         project_id: args.project_id ? Number(args.project_id) : null,
         notify_call: Boolean(args.notify_call),
+        remind_before: args.remind_before ? Number(args.remind_before) : undefined,
+        remind_interval: args.remind_interval ? String(args.remind_interval) : undefined,
       });
       return JSON.stringify(data, null, 2);
     }
@@ -459,6 +475,8 @@ export async function executeTool(
       if (args.type !== undefined) payload.type = args.type;
       if (args.project_id !== undefined) payload.project_id = args.project_id;
       if (args.notify_call !== undefined) payload.notify_call = args.notify_call;
+      if (args.remind_before !== undefined) payload.remind_before = Number(args.remind_before);
+      if (args.remind_interval !== undefined) payload.remind_interval = args.remind_interval;
       const data = await api("PUT", `/api/events/${id}`, payload);
       return JSON.stringify(data, null, 2);
     }

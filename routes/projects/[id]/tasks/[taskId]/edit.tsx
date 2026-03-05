@@ -30,6 +30,7 @@ export const handler = define.handlers({
     const description = (form.get("description") as string | null)?.trim() ?? "";
     const priority = form.get("priority") as string;
     const status = form.get("status") as string;
+    const dueDate = (form.get("due_date") as string | null)?.trim() || null;
 
     if (!title) {
       return page({ project, task, error: "Title is required" }, { status: 422 });
@@ -40,6 +41,7 @@ export const handler = define.handlers({
       description,
       priority: priority as "low" | "medium" | "high",
       status: status as "todo" | "in_progress" | "done",
+      due_date: dueDate,
     });
 
     return new Response(null, {
@@ -117,6 +119,16 @@ export default define.page<typeof handler>(function EditTaskPage({ data }) {
               <option value="done" selected={task.status === "done"}>DONE</option>
             </select>
           </div>
+        </div>
+
+        <div>
+          <label class="t-field-label">DUE_DATE</label>
+          <input
+            type="date"
+            name="due_date"
+            value={task.due_date ?? ""}
+            class="t-input"
+          />
         </div>
 
         <div

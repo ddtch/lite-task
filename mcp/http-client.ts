@@ -151,6 +151,10 @@ const TOOLS = [
           enum: ["todo", "in_progress", "done"],
           description: "Status (default: todo)",
         },
+        due_date: {
+          type: "string",
+          description: "Due date in YYYY-MM-DD format (optional)",
+        },
       },
       required: ["project_id", "title"],
     },
@@ -169,7 +173,7 @@ const TOOLS = [
   {
     name: "update_task",
     description:
-      "Update a task's title, description, status, or priority. Only provided fields are updated.",
+      "Update a task's title, description, status, priority, or due_date. Only provided fields are updated.",
     inputSchema: {
       type: "object",
       properties: {
@@ -178,6 +182,7 @@ const TOOLS = [
         description: { type: "string" },
         status: { type: "string", enum: ["todo", "in_progress", "done"] },
         priority: { type: "string", enum: ["low", "medium", "high"] },
+        due_date: { type: "string", description: "Due date in YYYY-MM-DD format, or null to clear" },
       },
       required: ["id"],
     },
@@ -229,7 +234,7 @@ const TOOLS = [
   {
     name: "create_event",
     description:
-      "Create a calendar event, note, or reminder. Timed events get a Telegram notification 10 min before. Set notify_call to also get a phone call 5 min before.",
+      "Create a calendar event, note, or reminder. Timed events get a notification before the event (default 10 min). Set remind_before to choose timing (5, 10, 30, 60, 1440, 2880 minutes). Set remind_interval to 'hourly' or 'daily' for recurring reminders.",
     inputSchema: {
       type: "object",
       properties: {
@@ -255,6 +260,15 @@ const TOOLS = [
         notify_call: {
           type: "boolean",
           description: "Enable phone call reminder 5 min before event (requires event_time)",
+        },
+        remind_before: {
+          type: "number",
+          description: "Minutes before event to notify (5, 10, 30, 60, 1440, 2880). Default: 10",
+        },
+        remind_interval: {
+          type: "string",
+          enum: ["hourly", "daily"],
+          description: "Repeat reminder at this interval until the event (optional)",
         },
       },
       required: ["title", "event_date"],
@@ -286,6 +300,8 @@ const TOOLS = [
         type: { type: "string", enum: ["event", "note", "reminder"] },
         project_id: { type: "number", description: "Project ID or null to unlink" },
         notify_call: { type: "boolean", description: "Enable/disable phone call reminder" },
+        remind_before: { type: "number", description: "Minutes before event to notify" },
+        remind_interval: { type: "string", enum: ["hourly", "daily"], description: "Set recurring interval or null to clear" },
       },
       required: ["id"],
     },
@@ -386,6 +402,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
           description: String(a.description ?? "").trim(),
           priority: a.priority ?? "medium",
           status: a.status ?? "todo",
+          due_date: a.due_date ? String(a.due_date).trim() : null,
         });
         return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
       }
@@ -403,6 +420,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         if (a.description !== undefined) payload.description = String(a.description).trim();
         if (a.status !== undefined) payload.status = a.status;
         if (a.priority !== undefined) payload.priority = a.priority;
+        if (a.due_date !== undefined) payload.due_date = a.due_date === null ? null : String(a.due_date).trim() || null;
         const data = await api("PUT", `/api/tasks/${id}`, payload);
         return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
       }
@@ -452,6 +470,8 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
           type: a.type ?? "event",
           project_id: a.project_id ? Number(a.project_id) : null,
           notify_call: Boolean(a.notify_call),
+          remind_before: a.remind_before ? Number(a.remind_before) : undefined,
+          remind_interval: a.remind_interval ? String(a.remind_interval) : undefined,
         });
         return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
       }
@@ -472,6 +492,8 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         if (a.type !== undefined) payload.type = a.type;
         if (a.project_id !== undefined) payload.project_id = a.project_id;
         if (a.notify_call !== undefined) payload.notify_call = a.notify_call;
+        if (a.remind_before !== undefined) payload.remind_before = Number(a.remind_before);
+        if (a.remind_interval !== undefined) payload.remind_interval = a.remind_interval;
         const data = await api("PUT", `/api/events/${id}`, payload);
         return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
       }

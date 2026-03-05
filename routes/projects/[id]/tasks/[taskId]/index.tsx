@@ -105,6 +105,20 @@ export default define.page<typeof handler>(function TaskDetailPage({ data }) {
           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <PriorityBadge priority={task.priority} />
             <StatusBadge status={task.status} />
+            {task.due_date && (() => {
+              const isOverdue = task.status !== "done" && task.due_date < new Date().toISOString().split("T")[0];
+              return (
+                <span style={`font-size:.7rem; letter-spacing:.15em; text-transform:uppercase; ${isOverdue ? "color: var(--red);" : "color: var(--green-faint);"}`}>
+                  DUE:{" "}
+                  {new Date(task.due_date + "T00:00:00").toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                  {isOverdue && " [OVERDUE]"}
+                </span>
+              );
+            })()}
             <span style="font-size:.7rem; letter-spacing:.15em; color: var(--green-faint); text-transform:uppercase;">
               CREATED:{" "}
               {new Date(task.created_at).toLocaleDateString("en-US", {
