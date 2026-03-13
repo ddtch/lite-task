@@ -81,8 +81,13 @@ async function checkCallNotifications() {
         toNumber: REMINDER_TO_NUMBER,
         agentId: RETELL_AGENT_ID,
         dynamicVariables: {
+          outbound_mode: "event_reminder",
           reminder_message: `Your event "${event.title}" starts in ${event.remind_before} minutes.`,
+          reminder_context: `Event: ${event.title}. Date: ${event.event_date}. Time: ${event.event_time ?? "unspecified"}.`,
           event_id: String(event.id),
+          event_title: event.title,
+          event_date: event.event_date,
+          event_time: event.event_time ?? "",
         },
       });
       await markEventNotifiedCall(event.id);
@@ -120,8 +125,13 @@ async function checkRecurringNotifications() {
           toNumber: REMINDER_TO_NUMBER,
           agentId: RETELL_AGENT_ID,
           dynamicVariables: {
+            outbound_mode: "event_reminder",
             reminder_message: `Recurring reminder: your event "${event.title}" is on ${event.event_date} at ${event.event_time}.`,
+            reminder_context: `Recurring event: ${event.title}. Date: ${event.event_date}. Time: ${event.event_time ?? "unspecified"}. Interval: ${event.remind_interval ?? "none"}.`,
             event_id: String(event.id),
+            event_title: event.title,
+            event_date: event.event_date,
+            event_time: event.event_time ?? "",
           },
         });
         console.log(`[event-scheduler] Recurring call triggered for event ${event.id}: ${call.call_id}`);

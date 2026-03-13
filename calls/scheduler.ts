@@ -7,7 +7,12 @@
  */
 
 import { createPhoneCall } from "./retell.ts";
-import { listDueReminders, updateReminder } from "../db/queries.ts";
+import {
+  getProject,
+  getTask,
+  listDueReminders,
+  updateReminder,
+} from "../db/queries.ts";
 
 const RETELL_AGENT_ID = Deno.env.get("RETELL_AGENT_ID");
 const RETELL_FROM_NUMBER = Deno.env.get("RETELL_FROM_NUMBER");
@@ -31,13 +36,32 @@ async function checkReminders() {
       try {
         await updateReminder(reminder.id, { status: "triggered" });
 
+        const task = reminder.task_id ? await getTask(reminder.task_id) : undefined;
+        const project =
+          reminder.project_id
+            ? await getProject(reminder.project_id)
+            : (task ? await getProject(task.project_id) : undefined);
+        const reminderContextParts = [
+          `Message: ${reminder.message}`,
+          `Reminder time: ${reminder.remind_at}`,
+          ...(task ? [`Task: ${task.title}`] : []),
+          ...(project ? [`Project: ${project.name}`] : []),
+        ];
+        const reminderContext = reminderContextParts.join(". ");
+
         const call = await createPhoneCall({
           fromNumber: RETELL_FROM_NUMBER!,
           toNumber: reminder.phone_number,
           agentId: RETELL_AGENT_ID!,
           dynamicVariables: {
+            outbound_mode: "reminder",
             reminder_message: reminder.message,
+            reminder_context: reminderContext,
+            reminder_id: String(reminder.id),
+            reminder_time: reminder.remind_at,
             task_id: String(reminder.task_id ?? ""),
+            task_title: task?.title ?? "",
+            project_name: project?.name ?? "",
           },
         });
 
