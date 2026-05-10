@@ -4,6 +4,7 @@
 
 import { define } from "../../../utils.ts";
 import { createWebCall } from "../../../calls/retell.ts";
+import { buildDateContext } from "../../../calls/context.ts";
 import { createCallLog } from "../../../db/queries.ts";
 
 export const handler = define.handlers({
@@ -17,7 +18,7 @@ export const handler = define.handlers({
     }
 
     try {
-      const data = await createWebCall(agentId);
+      const data = await createWebCall(agentId, buildDateContext());
 
       await createCallLog({
         call_id: data.call_id,

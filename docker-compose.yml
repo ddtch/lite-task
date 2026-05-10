@@ -53,3 +53,17 @@ services:
       lite-task:
         condition: service_healthy
     restart: unless-stopped
+
+  reminder-scheduler:
+    build: .
+    command: ["deno", "run", "-A", "calls/scheduler.ts"]
+    env_file:
+      - .env
+    environment:
+      - TZ=${TZ:-America/New_York}
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      lite-task:
+        condition: service_healthy
+    restart: unless-stopped

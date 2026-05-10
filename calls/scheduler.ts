@@ -7,6 +7,7 @@
  */
 
 import { createPhoneCall } from "./retell.ts";
+import { buildDateContext } from "./context.ts";
 import {
   getProject,
   getTask,
@@ -54,6 +55,7 @@ async function checkReminders() {
           toNumber: reminder.phone_number,
           agentId: RETELL_AGENT_ID!,
           dynamicVariables: {
+            ...buildDateContext(),
             outbound_mode: "reminder",
             reminder_message: reminder.message,
             reminder_context: reminderContext,

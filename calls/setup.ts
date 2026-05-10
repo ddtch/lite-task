@@ -9,6 +9,7 @@
 
 import { createRetellAgent, createRetellLlm } from "./retell.ts";
 import { buildRetellTools } from "./tools.ts";
+import { BEGIN_MESSAGE, GENERAL_PROMPT } from "./prompt.ts";
 
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL");
 if (!APP_BASE_URL) {
@@ -21,39 +22,12 @@ if (!Deno.env.get("RETELL_API_KEY")) {
   Deno.exit(1);
 }
 
-const BEGIN_MESSAGE = "Hey! It's your lite-task assistant.";
-
-function buildGeneralPrompt(): string {
-  return `You are a voice assistant for lite-task, a task management app.
-You help users manage their projects and tasks through voice commands.
-You can create tasks, list tasks, update task status, set reminders, and give summaries.
-
-## Outbound Reminder Calls
-When {{outbound_mode}} is "reminder" or "event_reminder", this is an outbound reminder call.
-Your FIRST response after the greeting must immediately deliver the reminder content.
-Do NOT ask generic questions first. Do NOT start with "What would you like to do?".
-If {{reminder_context}} is provided, include that context in the first reminder response.
-Example first response:
-"I'm calling with your reminder: {{reminder_message}}. {{reminder_context}}"
-
-Rules:
-- Be concise and conversational — this is a phone call, not a text chat.
-- When creating a task, confirm the project name and task title with the user before calling the function.
-- If the user's request is ambiguous, ask for clarification.
-- After completing an action, briefly confirm what was done.
-- Detect the user's language and respond in the same language.
-- When listing tasks, summarize instead of reading every detail.
-- For status, use: "todo", "in_progress", or "done".
-- For priority, use: "low", "medium", or "high".
-- Today's date: ${new Date().toISOString().split("T")[0]}`;
-}
-
 console.log(`[setup] Creating Retell LLM with tools pointing to ${APP_BASE_URL}...`);
 
 const tools = buildRetellTools(APP_BASE_URL);
 
 const llm = await createRetellLlm({
-  generalPrompt: buildGeneralPrompt(),
+  generalPrompt: GENERAL_PROMPT,
   beginMessage: BEGIN_MESSAGE,
   tools,
 });

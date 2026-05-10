@@ -126,9 +126,17 @@ export async function createRetellAgent(opts: {
   });
 }
 
-export async function createWebCall(agentId: string): Promise<WebCallResponse> {
+export async function createWebCall(
+  agentId: string,
+  dynamicVariables?: Record<string, string>,
+): Promise<WebCallResponse> {
   return retellFetch<WebCallResponse>("/v2/create-web-call", {
-    body: { agent_id: agentId },
+    body: {
+      agent_id: agentId,
+      ...(dynamicVariables
+        ? { retell_llm_dynamic_variables: dynamicVariables }
+        : {}),
+    },
   });
 }
 
