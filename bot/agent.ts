@@ -27,8 +27,27 @@ const USE_ANTHROPIC = Boolean(ANTHROPIC_KEY);
 // System prompt
 // ---------------------------------------------------------------------------
 
+const TZ = Deno.env.get("TZ") ?? "America/New_York";
+
+function nowInTz(): { date: string; time: string; tz: string } {
+  const now = new Date();
+  const date = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  const time = new Intl.DateTimeFormat("en-GB", {
+    timeZone: TZ,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(now);
+  return { date, time, tz: TZ };
+}
+
 function buildSystemPrompt(): string {
-  const date = new Date().toISOString().split("T")[0];
+  const { date, time, tz } = nowInTz();
   return `You are a task management assistant for lite-task.
 You help users create, update, and review projects, tasks, and calendar events via a chat interface.
 You operate in private chats, Telegram groups, and channels.
@@ -48,7 +67,9 @@ Rules:
 - When the user sends a voice message, file, or photo and wants to attach it to a task, call upload_attachment with the task_id. Never say you cannot handle files.
 - When a message contains [Voice transcription]: ..., treat that text as the user's spoken words and act on them — create tasks, update status, answer questions, etc. The audio file is also available to attach.
 - If "Recent messages in this chat:" shows the user previously said to attach their next file/voice note to a task, honour that instruction now — call upload_attachment automatically without asking again.
-- Today's date: ${date}`;
+- Today's date: ${date} (${tz})
+- Current local time: ${time}
+- When the user mentions a time like "10:46 PM today", compare it against the current local time above. If the time is later today, it is NOT in the past — proceed without warning the user.`;
 }
 
 const MAX_ITERATIONS = 10;
