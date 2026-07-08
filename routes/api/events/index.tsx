@@ -55,7 +55,8 @@ export const handler = define.handlers({
       event_time: body.event_time ?? null,
       type,
       project_id: body.project_id ?? null,
-      notify_call: body.notify_call ?? false,
+      // undefined → createEvent's default (ON for events/reminders, OFF for notes)
+      notify_call: body.notify_call,
       remind_before: body.remind_before ?? 10,
       remind_interval: remindInterval,
     });

@@ -83,7 +83,7 @@ export default function Calendar({ events: initialEvents }: Props) {
   const formDesc = useSignal("");
   const formType = useSignal<"event" | "note" | "reminder">("event");
   const formTime = useSignal("");
-  const formNotifyCall = useSignal(false);
+  const formNotifyCall = useSignal(true);
   const formRemindBefore = useSignal(10);
   const formRemindInterval = useSignal<string | null>(null);
   const formSaving = useSignal(false);
@@ -283,7 +283,7 @@ export default function Calendar({ events: initialEvents }: Props) {
     formDesc.value = "";
     formType.value = "event";
     formTime.value = "";
-    formNotifyCall.value = false;
+    formNotifyCall.value = true;
     formRemindBefore.value = 10;
     formRemindInterval.value = null;
     editingEvent.value = null;
@@ -420,24 +420,26 @@ export default function Calendar({ events: initialEvents }: Props) {
                       class="t-input"
                       style="font-size:.82rem; padding: 5px 8px;"
                     />
-                    {formTime.value && (
+                    {(formTime.value || formType.value !== "note") && (
                       <div class="flex flex-col gap-2" style="font-family:'VT323',monospace; font-size:.82rem; color:var(--green-dim);">
-                        <div class="flex items-center gap-2">
-                          <span style="white-space:nowrap;">REMIND ME:</span>
-                          <select
-                            value={formRemindBefore.value}
-                            onChange={(e) => (formRemindBefore.value = Number((e.target as HTMLSelectElement).value))}
-                            class="t-input t-select"
-                            style="font-size:.78rem; padding: 3px 6px; flex:1;"
-                          >
-                            <option value={5}>5 MIN</option>
-                            <option value={10}>10 MIN</option>
-                            <option value={30}>30 MIN</option>
-                            <option value={60}>1 HOUR</option>
-                            <option value={1440}>1 DAY</option>
-                            <option value={2880}>2 DAYS</option>
-                          </select>
-                        </div>
+                        {formTime.value && (
+                          <div class="flex items-center gap-2">
+                            <span style="white-space:nowrap;">REMIND ME:</span>
+                            <select
+                              value={formRemindBefore.value}
+                              onChange={(e) => (formRemindBefore.value = Number((e.target as HTMLSelectElement).value))}
+                              class="t-input t-select"
+                              style="font-size:.78rem; padding: 3px 6px; flex:1;"
+                            >
+                              <option value={5}>5 MIN</option>
+                              <option value={10}>10 MIN</option>
+                              <option value={30}>30 MIN</option>
+                              <option value={60}>1 HOUR</option>
+                              <option value={1440}>1 DAY</option>
+                              <option value={2880}>2 DAYS</option>
+                            </select>
+                          </div>
+                        )}
                         <label class="flex items-center gap-2" style="cursor:pointer;">
                           <input
                             type="checkbox"
@@ -445,24 +447,26 @@ export default function Calendar({ events: initialEvents }: Props) {
                             onChange={(e) => (formNotifyCall.value = (e.target as HTMLInputElement).checked)}
                             style="accent-color: var(--green);"
                           />
-                          ALSO CALL ME
+                          {formTime.value ? "ALSO CALL ME" : "ALSO CALL ME (AT 8 AM)"}
                         </label>
-                        <div class="flex items-center gap-2">
-                          <span style="white-space:nowrap;">REPEAT:</span>
-                          <select
-                            value={formRemindInterval.value ?? ""}
-                            onChange={(e) => {
-                              const v = (e.target as HTMLSelectElement).value;
-                              formRemindInterval.value = v || null;
-                            }}
-                            class="t-input t-select"
-                            style="font-size:.78rem; padding: 3px 6px; flex:1;"
-                          >
-                            <option value="">ONE-TIME</option>
-                            <option value="hourly">REPEAT HOURLY</option>
-                            <option value="daily">REPEAT DAILY</option>
-                          </select>
-                        </div>
+                        {formTime.value && (
+                          <div class="flex items-center gap-2">
+                            <span style="white-space:nowrap;">REPEAT:</span>
+                            <select
+                              value={formRemindInterval.value ?? ""}
+                              onChange={(e) => {
+                                const v = (e.target as HTMLSelectElement).value;
+                                formRemindInterval.value = v || null;
+                              }}
+                              class="t-input t-select"
+                              style="font-size:.78rem; padding: 3px 6px; flex:1;"
+                            >
+                              <option value="">ONE-TIME</option>
+                              <option value="hourly">REPEAT HOURLY</option>
+                              <option value="daily">REPEAT DAILY</option>
+                            </select>
+                          </div>
+                        )}
                       </div>
                     )}
                     <div class="flex gap-2">

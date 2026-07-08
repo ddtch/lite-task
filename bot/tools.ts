@@ -206,7 +206,7 @@ const TOOL_SPECS: ToolSpec[] = [
   {
     name: "create_event",
     description:
-      "Create a calendar event, note, or reminder. Timed events get a notification before the event (default 10 min). Set remind_before to choose timing (5, 10, 30, 60, 1440, 2880 minutes). Set remind_interval for recurring reminders.",
+      "Create a calendar event, note, or reminder. Timed events get a notification before the event (default 10 min); untimed events/reminders get their notification at 08:00 on the event date. Phone call reminders are ON by default for events and reminders — pass notify_call: false only if the user explicitly does not want a call. Set remind_before to choose timing (5, 10, 30, 60, 1440, 2880 minutes). Set remind_interval for recurring reminders.",
     properties: {
       title: { type: "string", description: "Event title (required)" },
       description: { type: "string", description: "Optional description" },
@@ -218,7 +218,7 @@ const TOOL_SPECS: ToolSpec[] = [
         description: "Type (default: event)",
       },
       project_id: { type: "number", description: "Link to a project (optional)" },
-      notify_call: { type: "boolean", description: "Enable phone call reminder 5 min before event (requires event_time)" },
+      notify_call: { type: "boolean", description: "Phone call reminder. Default: true for events and reminders (false for notes). Timed events → call remind_before minutes before; untimed → call at 08:00 on the event date. Set false to opt out." },
       remind_before: { type: "number", description: "Minutes before event to notify (5, 10, 30, 60, 1440, 2880). Default: 10" },
       remind_interval: { type: "string", enum: ["hourly", "daily"], description: "Repeat reminder at this interval until the event (optional)" },
     },
@@ -452,7 +452,7 @@ export async function executeTool(
         event_time: args.event_time ? String(args.event_time) : null,
         type: args.type ?? "event",
         project_id: args.project_id ? Number(args.project_id) : null,
-        notify_call: Boolean(args.notify_call),
+        notify_call: typeof args.notify_call === "boolean" ? args.notify_call : undefined,
         remind_before: args.remind_before ? Number(args.remind_before) : undefined,
         remind_interval: args.remind_interval ? String(args.remind_interval) : undefined,
       });

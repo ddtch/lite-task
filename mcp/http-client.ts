@@ -234,7 +234,7 @@ const TOOLS = [
   {
     name: "create_event",
     description:
-      "Create a calendar event, note, or reminder. Timed events get a notification before the event (default 10 min). Set remind_before to choose timing (5, 10, 30, 60, 1440, 2880 minutes). Set remind_interval to 'hourly' or 'daily' for recurring reminders.",
+      "Create a calendar event, note, or reminder. Timed events get a notification before the event (default 10 min); untimed events/reminders get their notification at 08:00 on the event date. Phone call reminders are ON by default for events and reminders — pass notify_call: false only if the user explicitly does not want a call. Set remind_before to choose timing (5, 10, 30, 60, 1440, 2880 minutes). Set remind_interval to 'hourly' or 'daily' for recurring reminders.",
     inputSchema: {
       type: "object",
       properties: {
@@ -259,7 +259,8 @@ const TOOLS = [
         },
         notify_call: {
           type: "boolean",
-          description: "Enable phone call reminder 5 min before event (requires event_time)",
+          description:
+            "Phone call reminder. Default: true for events and reminders (false for notes). Timed events → call remind_before minutes before; untimed → call at 08:00 on the event date. Set false to opt out.",
         },
         remind_before: {
           type: "number",
@@ -469,7 +470,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
           event_time: a.event_time ? String(a.event_time) : null,
           type: a.type ?? "event",
           project_id: a.project_id ? Number(a.project_id) : null,
-          notify_call: Boolean(a.notify_call),
+          notify_call: typeof a.notify_call === "boolean" ? a.notify_call : undefined,
           remind_before: a.remind_before ? Number(a.remind_before) : undefined,
           remind_interval: a.remind_interval ? String(a.remind_interval) : undefined,
         });

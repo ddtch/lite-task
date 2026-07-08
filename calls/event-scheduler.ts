@@ -2,8 +2,9 @@
  * Event notification scheduler — sends Telegram messages and triggers phone calls
  * for upcoming calendar events.
  *
- * - Telegram: 10 minutes before event_time → sends message to BOT_HOST_ID
- * - Phone call: 5 minutes before event_time → calls REMINDER_TO_NUMBER (only if notify_call = 1)
+ * - Telegram: remind_before minutes before event_time → sends message to BOT_HOST_ID
+ * - Phone call: remind_before minutes before event_time → calls REMINDER_TO_NUMBER (only if notify_call = 1)
+ * - Events/reminders without event_time are notified at 08:00 on their date
  *
  * Usage: deno task events:scheduler
  *
@@ -57,7 +58,9 @@ async function checkTelegramNotifications() {
 
   for (const event of due) {
     try {
-      const msg = `Hey, your event "${event.title}" starts in ${event.remind_before} minutes! (${event.event_date} ${event.event_time})`;
+      const msg = event.event_time
+        ? `Hey, your event "${event.title}" starts in ${event.remind_before} minutes! (${event.event_date} ${event.event_time})`
+        : `Hey, don't forget: "${event.title}" is today! (${event.event_date})`;
       await sendTelegramMessage(msg);
       await markEventNotifiedTelegram(event.id);
       console.log(`[event-scheduler] Telegram sent for event ${event.id}: ${event.title}`);
@@ -84,8 +87,10 @@ async function checkCallNotifications() {
         dynamicVariables: {
           ...buildDateContext(),
           outbound_mode: "event_reminder",
-          reminder_message: `Your event "${event.title}" starts in ${event.remind_before} minutes.`,
-          reminder_context: `Event: ${event.title}. Date: ${event.event_date}. Time: ${event.event_time ?? "unspecified"}.`,
+          reminder_message: event.event_time
+            ? `Your event "${event.title}" starts in ${event.remind_before} minutes.`
+            : `A reminder that "${event.title}" is today, ${event.event_date}.`,
+          reminder_context: `Event: ${event.title}. Date: ${event.event_date}. Time: ${event.event_time ?? "no specific time (all-day)"}.`,
           event_id: String(event.id),
           event_title: event.title,
           event_date: event.event_date,

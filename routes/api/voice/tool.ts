@@ -276,13 +276,18 @@ export const handler = define.handlers({
             event_date: eventDate,
             event_time: args.event_time ? String(args.event_time) : null,
             type,
-            notify_call: Boolean(args.notify_call),
+            notify_call: typeof args.notify_call === "boolean" ? args.notify_call : undefined,
             remind_before: args.remind_before ? Number(args.remind_before) : undefined,
             remind_interval: args.remind_interval ? String(args.remind_interval) : undefined,
           });
 
           const timeStr = args.event_time ? ` at ${args.event_time}` : "";
-          const callStr = args.notify_call ? " You'll get a phone call 5 minutes before." : "";
+          const callOn = args.notify_call !== false && type !== "note";
+          const callStr = callOn
+            ? (args.event_time
+              ? " You'll get a phone call reminder before it."
+              : " You'll get a phone call reminder at 8 AM that day.")
+            : "";
           result = `${type.charAt(0).toUpperCase() + type.slice(1)} "${title}" created for ${eventDate}${timeStr} (ID: ${id}).${callStr}`;
           break;
         }

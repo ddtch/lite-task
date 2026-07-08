@@ -178,7 +178,7 @@ export function buildRetellTools(baseUrl: string): RetellTool[] {
       type: "custom",
       name: "create_event",
       description:
-        "Create a calendar event, note, or reminder. Timed events get a notification before the event (default 10 min). Set remind_before to choose timing. Set remind_interval for recurring reminders.",
+        "Create a calendar event, note, or reminder. Timed events get a notification before the event (default 10 min); untimed events/reminders are notified at 8 AM on the event date. Phone call reminders are ON by default — set notify_call to false only if the user explicitly says they don't want a call. Set remind_before to choose timing. Set remind_interval for recurring reminders.",
       url,
       method: "POST",
       parameters: {
@@ -195,7 +195,8 @@ export function buildRetellTools(baseUrl: string): RetellTool[] {
           },
           notify_call: {
             type: "boolean",
-            description: "Set to true to get a phone call reminder 5 minutes before the event",
+            description:
+              "Phone call reminder — ON by default for events and reminders. Set to false only if the user explicitly opts out. Untimed events get the call at 8 AM on the event date.",
           },
           remind_before: { type: "number", description: "Minutes before event to notify (5, 10, 30, 60, 1440, 2880). Default: 10" },
           remind_interval: { type: "string", enum: ["hourly", "daily"], description: "Repeat reminders at this interval" },

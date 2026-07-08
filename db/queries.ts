@@ -448,6 +448,9 @@ export async function getEvent(id: number): Promise<CalendarEvent | undefined> {
   return await db.get<CalendarEvent>("SELECT * FROM events WHERE id = ?", [id]);
 }
 
+/** Untimed events/reminders are notified at this local time on their date */
+export const DEFAULT_UNTIMED_NOTIFY_TIME = "08:00";
+
 export async function createEvent(fields: {
   title: string;
   description?: string;
@@ -460,6 +463,9 @@ export async function createEvent(fields: {
   remind_interval?: string | null;
 }): Promise<number> {
   const db = await getDb();
+  const type = fields.type ?? "event";
+  // Call reminders are opt-out: events and reminders default to ON, notes to OFF
+  const notifyCall = fields.notify_call ?? type !== "note";
   const remindBefore = fields.remind_before ?? 10;
   const remindInterval = fields.remind_interval ?? null;
   const id = await db.run(
@@ -470,9 +476,9 @@ export async function createEvent(fields: {
       fields.description ?? "",
       fields.event_date,
       fields.event_time ?? null,
-      fields.type ?? "event",
+      type,
       fields.project_id ?? null,
-      fields.notify_call ? 1 : 0,
+      notifyCall ? 1 : 0,
       remindBefore,
       remindInterval,
     ],
@@ -481,10 +487,15 @@ export async function createEvent(fields: {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const timeStr = fields.event_time ? ` ${fields.event_time}` : "";
   const notifyParts: string[] = [];
-  if (fields.event_time) notifyParts.push(`telegram ${remindBefore}min before`);
-  if (fields.notify_call) notifyParts.push(`phone call ${remindBefore}min before`);
+  if (fields.event_time) {
+    notifyParts.push(`telegram ${remindBefore}min before`);
+    if (notifyCall) notifyParts.push(`phone call ${remindBefore}min before`);
+  } else if (type !== "note") {
+    notifyParts.push(`telegram at ${DEFAULT_UNTIMED_NOTIFY_TIME}`);
+    if (notifyCall) notifyParts.push(`phone call at ${DEFAULT_UNTIMED_NOTIFY_TIME}`);
+  }
   if (remindInterval) notifyParts.push(`recurring: ${remindInterval}`);
-  const notifyStr = notifyParts.length > 0 ? ` | notifications: ${notifyParts.join(", ")}` : " | no notifications (no time set)";
+  const notifyStr = notifyParts.length > 0 ? ` | notifications: ${notifyParts.join(", ")}` : " | no notifications";
   console.log(`[events] Created #${id} "${fields.title}" → ${fields.event_date}${timeStr} (${tz})${notifyStr}`);
 
   return id;
@@ -521,16 +532,20 @@ function localNow(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// Untimed events/reminders (but not notes) notify at DEFAULT_UNTIMED_NOTIFY_TIME
+const DUE_TIME_SQL =
+  `datetime(event_date || 'T' || COALESCE(event_time, '${DEFAULT_UNTIMED_NOTIFY_TIME}'))`;
+
 export async function listDueEventsTelegram(): Promise<CalendarEvent[]> {
   const db = await getDb();
   const now = localNow();
   return await db.all<CalendarEvent>(
     `SELECT * FROM events
-     WHERE event_time IS NOT NULL
+     WHERE (event_time IS NOT NULL OR type != 'note')
        AND notified_telegram = 0
        AND remind_interval IS NULL
-       AND datetime(event_date || 'T' || event_time) <= datetime(?, '+' || remind_before || ' minutes')
-       AND datetime(event_date || 'T' || event_time) >= datetime(?)`,
+       AND ${DUE_TIME_SQL} <= datetime(?, '+' || remind_before || ' minutes')
+       AND ${DUE_TIME_SQL} >= datetime(?)`,
     [now, now],
   );
 }
@@ -540,12 +555,12 @@ export async function listDueEventsCall(): Promise<CalendarEvent[]> {
   const now = localNow();
   return await db.all<CalendarEvent>(
     `SELECT * FROM events
-     WHERE event_time IS NOT NULL
+     WHERE (event_time IS NOT NULL OR type != 'note')
        AND notify_call = 1
        AND notified_call = 0
        AND remind_interval IS NULL
-       AND datetime(event_date || 'T' || event_time) <= datetime(?, '+' || remind_before || ' minutes')
-       AND datetime(event_date || 'T' || event_time) >= datetime(?)`,
+       AND ${DUE_TIME_SQL} <= datetime(?, '+' || remind_before || ' minutes')
+       AND ${DUE_TIME_SQL} >= datetime(?)`,
     [now, now],
   );
 }
