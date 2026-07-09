@@ -5,7 +5,7 @@
  */
 
 import { buildRetellTools } from "./tools.ts";
-import { BEGIN_MESSAGE, GENERAL_PROMPT } from "./prompt.ts";
+import { GENERAL_PROMPT } from "./prompt.ts";
 
 const API_BASE = "https://api.retellai.com";
 const API_KEY = Deno.env.get("RETELL_API_KEY");
@@ -31,7 +31,9 @@ const llmRes = await fetch(`${API_BASE}/update-retell-llm/${LLM_ID}`, {
   body: JSON.stringify({
     general_tools: tools,
     general_prompt: GENERAL_PROMPT,
-    begin_message: BEGIN_MESSAGE,
+    // null unsets the static begin message so the LLM generates the
+    // first utterance (reminder calls open with the reminder itself).
+    begin_message: null,
   }),
 });
 
@@ -39,7 +41,7 @@ if (!llmRes.ok) {
   console.error(`Failed to update LLM: ${await llmRes.text()}`);
   Deno.exit(1);
 }
-console.log(`[update] LLM tools + prompt + begin_message → ${APP_BASE_URL}/api/voice/tool`);
+console.log(`[update] LLM tools + prompt → ${APP_BASE_URL}/api/voice/tool`);
 
 // Update agent webhook URL
 const agentRes = await fetch(`${API_BASE}/update-agent/${AGENT_ID}`, {

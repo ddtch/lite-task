@@ -9,7 +9,7 @@
 
 import { createRetellAgent, createRetellLlm } from "./retell.ts";
 import { buildRetellTools } from "./tools.ts";
-import { BEGIN_MESSAGE, GENERAL_PROMPT } from "./prompt.ts";
+import { GENERAL_PROMPT } from "./prompt.ts";
 
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL");
 if (!APP_BASE_URL) {
@@ -22,13 +22,14 @@ if (!Deno.env.get("RETELL_API_KEY")) {
   Deno.exit(1);
 }
 
-console.log(`[setup] Creating Retell LLM with tools pointing to ${APP_BASE_URL}...`);
+console.log(
+  `[setup] Creating Retell LLM with tools pointing to ${APP_BASE_URL}...`,
+);
 
 const tools = buildRetellTools(APP_BASE_URL);
 
 const llm = await createRetellLlm({
   generalPrompt: GENERAL_PROMPT,
-  beginMessage: BEGIN_MESSAGE,
   tools,
 });
 

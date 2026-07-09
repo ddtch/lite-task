@@ -91,7 +91,6 @@ export interface PhoneCallResponse {
 
 export async function createRetellLlm(opts: {
   generalPrompt: string;
-  beginMessage: string;
   tools: RetellTool[];
   model?: string;
 }): Promise<RetellLlm> {
@@ -100,7 +99,8 @@ export async function createRetellLlm(opts: {
       model: opts.model ?? "claude-4.6-sonnet",
       general_prompt: opts.generalPrompt,
       general_tools: opts.tools,
-      begin_message: opts.beginMessage,
+      // No begin_message: the LLM generates the first utterance from the
+      // prompt, so reminder calls open with the reminder itself.
     },
   });
 }
