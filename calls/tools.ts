@@ -211,7 +211,7 @@ export function buildRetellTools(baseUrl: string): RetellTool[] {
       type: "custom",
       name: "update_event",
       description:
-        "Update a calendar event by title. Use when the user wants to change the time, date, description, or enable/disable call notification for an event.",
+        "Update or reschedule a calendar event by title. Use when the user wants to move an event to another day, change its time, edit the description, or enable/disable call notification. Rescheduling re-arms the reminder.",
       url,
       method: "POST",
       parameters: {
@@ -222,7 +222,10 @@ export function buildRetellTools(baseUrl: string): RetellTool[] {
             description: "Title or partial title of the event to update",
           },
           title: { type: "string", description: "New title" },
-          event_date: { type: "string", description: "New date in YYYY-MM-DD" },
+          event_date: {
+            type: "string",
+            description: "New date in YYYY-MM-DD — use this to move the event to another day",
+          },
           event_time: { type: "string", description: "New time in HH:MM, or 'none' to clear" },
           description: { type: "string", description: "New description" },
           type: { type: "string", enum: ["event", "note", "reminder"] },

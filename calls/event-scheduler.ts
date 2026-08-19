@@ -13,7 +13,7 @@
  */
 
 import { createPhoneCall } from "./retell.ts";
-import { buildDateContext } from "./context.ts";
+import { buildCallContext } from "./context.ts";
 import {
   listDueEventsCall,
   listDueEventsTelegram,
@@ -84,18 +84,21 @@ async function checkCallNotifications() {
         fromNumber: RETELL_FROM_NUMBER,
         toNumber: REMINDER_TO_NUMBER,
         agentId: RETELL_AGENT_ID,
-        dynamicVariables: {
-          ...buildDateContext(),
-          outbound_mode: "event_reminder",
-          reminder_message: event.event_time
-            ? `Your event "${event.title}" starts in ${event.remind_before} minutes.`
-            : `A reminder that "${event.title}" is today, ${event.event_date}.`,
-          reminder_context: `Event: ${event.title}. Date: ${event.event_date}. Time: ${event.event_time ?? "no specific time (all-day)"}.`,
-          event_id: String(event.id),
-          event_title: event.title,
-          event_date: event.event_date,
-          event_time: event.event_time ?? "",
-        },
+        dynamicVariables: buildCallContext({
+          mode: "event_reminder",
+          summary: event.event_time
+            ? (event.type === "event"
+              ? `your event "${event.title}" starts in ${event.remind_before} minutes, at ${event.event_time}`
+              : `"${event.title}" is coming up in ${event.remind_before} minutes, at ${event.event_time}`)
+            : `"${event.title}" is on your calendar today, ${event.event_date}`,
+          details: `Event: ${event.title}. Date: ${event.event_date}. Time: ${event.event_time ?? "no specific time (all-day)"}.`,
+          extra: {
+            event_id: String(event.id),
+            event_title: event.title,
+            event_date: event.event_date,
+            event_time: event.event_time ?? "",
+          },
+        }),
       });
       await markEventNotifiedCall(event.id);
       console.log(`[event-scheduler] Call triggered for event ${event.id}: ${call.call_id}`);
@@ -131,16 +134,17 @@ async function checkRecurringNotifications() {
           fromNumber: RETELL_FROM_NUMBER,
           toNumber: REMINDER_TO_NUMBER,
           agentId: RETELL_AGENT_ID,
-          dynamicVariables: {
-            ...buildDateContext(),
-            outbound_mode: "event_reminder",
-            reminder_message: `Recurring reminder: your event "${event.title}" is on ${event.event_date} at ${event.event_time}.`,
-            reminder_context: `Recurring event: ${event.title}. Date: ${event.event_date}. Time: ${event.event_time ?? "unspecified"}. Interval: ${event.remind_interval ?? "none"}.`,
-            event_id: String(event.id),
-            event_title: event.title,
-            event_date: event.event_date,
-            event_time: event.event_time ?? "",
-          },
+          dynamicVariables: buildCallContext({
+            mode: "event_reminder",
+            summary: `"${event.title}" is coming up on ${event.event_date} at ${event.event_time}`,
+            details: `Recurring event: ${event.title}. Date: ${event.event_date}. Time: ${event.event_time ?? "unspecified"}. Interval: ${event.remind_interval ?? "none"}. This is a repeating reminder.`,
+            extra: {
+              event_id: String(event.id),
+              event_title: event.title,
+              event_date: event.event_date,
+              event_time: event.event_time ?? "",
+            },
+          }),
         });
         console.log(`[event-scheduler] Recurring call triggered for event ${event.id}: ${call.call_id}`);
       }

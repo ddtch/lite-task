@@ -234,12 +234,12 @@ const TOOL_SPECS: ToolSpec[] = [
   },
   {
     name: "update_event",
-    description: "Update a calendar event. Only provided fields are updated.",
+    description: "Update a calendar event, note, or reminder. Only provided fields are updated. Pass event_date to move the entry to another day and event_time to change its time — rescheduling re-arms the Telegram/phone notifications.",
     properties: {
       id: { type: "number", description: "Event ID (required)" },
       title: { type: "string" },
       description: { type: "string" },
-      event_date: { type: "string", description: "YYYY-MM-DD" },
+      event_date: { type: "string", description: "New date, YYYY-MM-DD — use this to move the entry to another day" },
       event_time: { type: "string", description: "HH:MM or null to clear" },
       type: { type: "string", enum: ["event", "note", "reminder"] },
       project_id: { type: "number", description: "Project ID or null to unlink" },

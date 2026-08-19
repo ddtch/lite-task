@@ -1,15 +1,21 @@
 /**
- * Per-call dynamic context (date, time, timezone) for the Retell LLM prompt.
+ * Per-call dynamic context for the Retell LLM prompt.
  *
- * The Retell general_prompt is set once at LLM creation and stays static.
- * To keep the agent's understanding of "today" current, we pass these values
- * via retell_llm_dynamic_variables on every outbound/inbound call and
- * reference them in the prompt as {{current_date}} etc.
+ * The Retell general_prompt and begin_message are set once at LLM creation and
+ * stay static. Everything that varies per call — today's date, and above all the
+ * reason the agent is calling — is passed as retell_llm_dynamic_variables and
+ * referenced from the prompt as {{current_date}}, {{call_opening}}, etc.
+ *
+ * buildCallContext() is the single place the spoken opening line is composed, so
+ * every outbound call states its purpose in its very first sentence.
  */
 
+import { AGENT_TIMEZONE } from "./prompt.ts";
+
 export function buildDateContext(): Record<string, string> {
-  const tz = Deno.env.get("TZ") ??
-    Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // Same constant the prompt's {{current_time_<IANA>}} anchor and the agent's
+  // own timezone setting are built from, so all three agree.
+  const tz = AGENT_TIMEZONE;
   const now = new Date();
 
   const current_date = now.toLocaleDateString("en-CA", { timeZone: tz });
@@ -30,5 +36,36 @@ export function buildDateContext(): Record<string, string> {
     current_datetime: `${current_date} ${current_time}`,
     day_of_week,
     timezone: tz,
+  };
+}
+
+export interface CallReason {
+  /** Why the agent is calling, as a lower-case clause with no trailing period —
+   *  e.g. `your event "Lunch" starts in 10 minutes`. Goes straight into speech. */
+  summary: string;
+  /** Extra facts the agent can draw on later in the call. */
+  details: string;
+  /** Which kind of outbound call this is. */
+  mode: "reminder" | "event_reminder";
+  /** Identifiers and labels passed through for the agent's tool calls. */
+  extra?: Record<string, string>;
+}
+
+/**
+ * Full dynamic-variable set for an outbound call, including the composed
+ * {{call_opening}} the agent speaks first.
+ */
+export function buildCallContext(reason: CallReason): Record<string, string> {
+  const summary = reason.summary.replace(/\.\s*$/, "");
+  return {
+    ...buildDateContext(),
+    outbound_mode: reason.mode,
+    call_opening:
+      `Hi! It's your lite-task assistant — quick reminder: ${summary}.`,
+    call_reason: summary,
+    // Kept under the original names so existing prompt versions still resolve.
+    reminder_message: summary,
+    reminder_context: reason.details,
+    ...reason.extra,
   };
 }

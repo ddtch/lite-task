@@ -82,6 +82,7 @@ export default function Calendar({ events: initialEvents }: Props) {
   const formTitle = useSignal("");
   const formDesc = useSignal("");
   const formType = useSignal<"event" | "note" | "reminder">("event");
+  const formDate = useSignal("");
   const formTime = useSignal("");
   const formNotifyCall = useSignal(true);
   const formRemindBefore = useSignal(10);
@@ -231,7 +232,8 @@ export default function Calendar({ events: initialEvents }: Props) {
   }
 
   async function handleCreate() {
-    if (!formTitle.value.trim() || !selectedDate.value) return;
+    const date = formDate.value || selectedDate.value;
+    if (!formTitle.value.trim() || !date) return;
     formSaving.value = true;
     try {
       const res = await fetch("/api/events", {
@@ -240,7 +242,7 @@ export default function Calendar({ events: initialEvents }: Props) {
         body: JSON.stringify({
           title: formTitle.value.trim(),
           description: formDesc.value.trim(),
-          event_date: selectedDate.value,
+          event_date: date,
           event_time: formTime.value || null,
           type: formType.value,
           notify_call: formNotifyCall.value,
@@ -250,7 +252,7 @@ export default function Calendar({ events: initialEvents }: Props) {
       });
       if (res.ok) {
         resetForm();
-        await refetchCurrent();
+        await gotoAndRefetch(date);
       }
     } finally {
       formSaving.value = false;
@@ -270,6 +272,7 @@ export default function Calendar({ events: initialEvents }: Props) {
     formTitle.value = ev.title;
     formDesc.value = ev.description;
     formType.value = ev.type;
+    formDate.value = ev.event_date;
     formTime.value = ev.event_time ?? "";
     formNotifyCall.value = ev.notify_call === 1;
     formRemindBefore.value = ev.remind_before ?? 10;
@@ -282,6 +285,7 @@ export default function Calendar({ events: initialEvents }: Props) {
     formTitle.value = "";
     formDesc.value = "";
     formType.value = "event";
+    formDate.value = selectedDate.value ?? "";
     formTime.value = "";
     formNotifyCall.value = true;
     formRemindBefore.value = 10;
@@ -292,7 +296,8 @@ export default function Calendar({ events: initialEvents }: Props) {
 
   async function handleUpdate() {
     const ev = editingEvent.value;
-    if (!ev || !formTitle.value.trim()) return;
+    const date = formDate.value || ev?.event_date;
+    if (!ev || !formTitle.value.trim() || !date) return;
     formSaving.value = true;
     try {
       const res = await fetch(`/api/events/${ev.id}`, {
@@ -301,7 +306,7 @@ export default function Calendar({ events: initialEvents }: Props) {
         body: JSON.stringify({
           title: formTitle.value.trim(),
           description: formDesc.value.trim(),
-          event_date: selectedDate.value,
+          event_date: date,
           event_time: formTime.value || null,
           type: formType.value,
           notify_call: formNotifyCall.value,
@@ -311,11 +316,23 @@ export default function Calendar({ events: initialEvents }: Props) {
       });
       if (res.ok) {
         resetForm();
-        await refetchCurrent();
+        await gotoAndRefetch(date);
       }
     } finally {
       formSaving.value = false;
     }
+  }
+
+  /** Follow an entry to its (possibly new) date, scrolling the calendar if needed */
+  async function gotoAndRefetch(date: string) {
+    selectedDate.value = date;
+    formDate.value = date;
+    if (fcRef.current && (date < viewStart.value || date >= viewEnd.value)) {
+      // gotoDate fires datesSet, which refetches the new range on its own
+      fcRef.current.gotoDate(date);
+      return;
+    }
+    await refetchCurrent();
   }
 
   async function refetchCurrent() {
@@ -393,6 +410,16 @@ export default function Calendar({ events: initialEvents }: Props) {
                       class="t-input"
                       style="font-size:.82rem; padding: 5px 8px;"
                     />
+                    <div class="flex items-center gap-2" style="font-family:'VT323',monospace; font-size:.82rem; color:var(--green-dim);">
+                      <span style="white-space:nowrap;">DATE:</span>
+                      <input
+                        type="date"
+                        value={formDate.value}
+                        onInput={(e) => (formDate.value = (e.target as HTMLInputElement).value)}
+                        class="t-input"
+                        style="font-size:.82rem; padding: 5px 8px; flex:1;"
+                      />
+                    </div>
                     <div class="grid grid-cols-2 gap-2">
                       <select
                         value={formType.value}
@@ -473,7 +500,7 @@ export default function Calendar({ events: initialEvents }: Props) {
                       <button
                         type="button"
                         onClick={editingEvent.value ? handleUpdate : handleCreate}
-                        disabled={formSaving.value || !formTitle.value.trim()}
+                        disabled={formSaving.value || !formTitle.value.trim() || !formDate.value}
                         class="t-btn t-btn-primary flex-1"
                         style="font-size:.9rem;"
                       >

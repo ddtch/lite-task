@@ -501,15 +501,45 @@ export async function createEvent(fields: {
   return id;
 }
 
+/** Fields that decide *when* an event notifies — changing any re-arms notifications */
+const SCHEDULE_FIELDS = [
+  "event_date",
+  "event_time",
+  "remind_before",
+  "remind_interval",
+] as const;
+
 export async function updateEvent(
   id: number,
   fields: Partial<Pick<CalendarEvent, "title" | "description" | "event_date" | "event_time" | "type" | "project_id" | "notify_call" | "notified_telegram" | "notified_call" | "remind_before" | "remind_interval" | "last_notified_at">>,
 ): Promise<void> {
   const db = await getDb();
+  const patch: Record<string, unknown> = { ...fields };
+
+  // Rescheduling re-arms notifications: an event moved to another day or time
+  // must fire again even if its old slot was already notified. Callers that set
+  // the flags themselves (the schedulers) keep control. Applied here rather than
+  // per-route so every path — UI, HTTP API, MCP, bot, voice — behaves the same.
+  const touchesSchedule = SCHEDULE_FIELDS.some((f) => patch[f] !== undefined);
+  const setsFlags = patch.notified_telegram !== undefined ||
+    patch.notified_call !== undefined;
+  if (touchesSchedule && !setsFlags) {
+    const current = await getEvent(id);
+    const rescheduled = current !== undefined &&
+      SCHEDULE_FIELDS.some((f) =>
+        patch[f] !== undefined && patch[f] !== current[f]
+      );
+    if (rescheduled) {
+      patch.notified_telegram = 0;
+      patch.notified_call = 0;
+      patch.last_notified_at = null;
+    }
+  }
+
   const sets: string[] = [];
   const values: unknown[] = [];
 
-  for (const [key, val] of Object.entries(fields)) {
+  for (const [key, val] of Object.entries(patch)) {
     if (val !== undefined) {
       sets.push(`${key} = ?`);
       values.push(val);

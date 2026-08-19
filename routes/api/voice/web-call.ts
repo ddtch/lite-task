@@ -18,7 +18,12 @@ export const handler = define.handlers({
     }
 
     try {
-      const data = await createWebCall(agentId, buildDateContext());
+      // No reminder context: the remaining variables (call_opening, call_reason)
+      // fall back to the LLM's default_dynamic_variables — see calls/prompt.ts.
+      const data = await createWebCall(agentId, {
+        ...buildDateContext(),
+        outbound_mode: "web",
+      });
 
       await createCallLog({
         call_id: data.call_id,

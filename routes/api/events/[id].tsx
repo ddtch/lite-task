@@ -52,11 +52,8 @@ export const handler = define.handlers({
         : null;
     }
 
-    // Reset notification state so notifications re-fire with new timing
-    fields.notified_telegram = 0;
-    fields.notified_call = 0;
-    fields.last_notified_at = null;
-
+    // Notification state is re-armed by updateEvent() when the schedule actually
+    // changes — editing only a title no longer re-fires a past notification.
     await updateEvent(id, fields);
     const updated = await getEvent(id);
     return Response.json(updated);

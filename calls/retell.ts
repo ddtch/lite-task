@@ -93,14 +93,22 @@ export async function createRetellLlm(opts: {
   generalPrompt: string;
   tools: RetellTool[];
   model?: string;
+  beginMessage?: string;
+  defaultDynamicVariables?: Record<string, string>;
 }): Promise<RetellLlm> {
   return retellFetch<RetellLlm>("/create-retell-llm", {
     body: {
       model: opts.model ?? "claude-4.6-sonnet",
       general_prompt: opts.generalPrompt,
       general_tools: opts.tools,
-      // No begin_message: the LLM generates the first utterance from the
-      // prompt, so reminder calls open with the reminder itself.
+      // begin_message is a dynamic variable the backend fills per call, so a
+      // reminder call opens by stating its reason instead of a generic greeting.
+      ...(opts.beginMessage !== undefined
+        ? { begin_message: opts.beginMessage }
+        : {}),
+      ...(opts.defaultDynamicVariables
+        ? { default_dynamic_variables: opts.defaultDynamicVariables }
+        : {}),
     },
   });
 }
@@ -111,6 +119,8 @@ export async function createRetellAgent(opts: {
   agentName?: string;
   language?: string;
   webhookUrl?: string;
+  /** IANA zone; Retell falls back to America/Los_Angeles when unset. */
+  timezone?: string;
 }): Promise<RetellAgent> {
   return retellFetch<RetellAgent>("/create-agent", {
     body: {
@@ -122,6 +132,7 @@ export async function createRetellAgent(opts: {
       agent_name: opts.agentName ?? "lite-task-voice",
       language: opts.language ?? "multi",
       ...(opts.webhookUrl ? { webhook_url: opts.webhookUrl } : {}),
+      ...(opts.timezone ? { timezone: opts.timezone } : {}),
     },
   });
 }

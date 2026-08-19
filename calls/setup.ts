@@ -9,7 +9,12 @@
 
 import { createRetellAgent, createRetellLlm } from "./retell.ts";
 import { buildRetellTools } from "./tools.ts";
-import { GENERAL_PROMPT } from "./prompt.ts";
+import {
+  AGENT_TIMEZONE,
+  BEGIN_MESSAGE,
+  DEFAULT_DYNAMIC_VARIABLES,
+  GENERAL_PROMPT,
+} from "./prompt.ts";
 
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL");
 if (!APP_BASE_URL) {
@@ -31,6 +36,8 @@ const tools = buildRetellTools(APP_BASE_URL);
 const llm = await createRetellLlm({
   generalPrompt: GENERAL_PROMPT,
   tools,
+  beginMessage: BEGIN_MESSAGE,
+  defaultDynamicVariables: DEFAULT_DYNAMIC_VARIABLES,
 });
 
 console.log(`[setup] Created LLM: ${llm.llm_id}`);
@@ -42,6 +49,7 @@ const agent = await createRetellAgent({
   agentName: "lite-task-voice",
   language: "multi",
   webhookUrl: `${APP_BASE_URL}/api/voice/webhook`,
+  timezone: AGENT_TIMEZONE,
 });
 
 console.log(`[setup] Created Agent: ${agent.agent_id}`);
