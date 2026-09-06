@@ -490,9 +490,13 @@ export async function createEvent(fields: {
   if (fields.event_time) {
     notifyParts.push(`telegram ${remindBefore}min before`);
     if (notifyCall) notifyParts.push(`phone call ${remindBefore}min before`);
-  } else if (type !== "note") {
-    notifyParts.push(`telegram at ${DEFAULT_UNTIMED_NOTIFY_TIME}`);
-    if (notifyCall) notifyParts.push(`phone call at ${DEFAULT_UNTIMED_NOTIFY_TIME}`);
+  } else {
+    if (type !== "note") {
+      notifyParts.push(`telegram at ${DEFAULT_UNTIMED_NOTIFY_TIME}`);
+    }
+    if (notifyCall) {
+      notifyParts.push(`phone call at ${DEFAULT_UNTIMED_NOTIFY_TIME}`);
+    }
   }
   if (remindInterval) notifyParts.push(`recurring: ${remindInterval}`);
   const notifyStr = notifyParts.length > 0 ? ` | notifications: ${notifyParts.join(", ")}` : " | no notifications";
@@ -583,10 +587,13 @@ export async function listDueEventsTelegram(): Promise<CalendarEvent[]> {
 export async function listDueEventsCall(): Promise<CalendarEvent[]> {
   const db = await getDb();
   const now = localNow();
+  // Untimed notes are not excluded the way they are from the Telegram sweep:
+  // notes default to notify_call = 0, so a note carrying the flag is one the
+  // user explicitly asked to be called about, and silently skipping it would
+  // make the assistant promise a call that never comes.
   return await db.all<CalendarEvent>(
     `SELECT * FROM events
-     WHERE (event_time IS NOT NULL OR type != 'note')
-       AND notify_call = 1
+     WHERE notify_call = 1
        AND notified_call = 0
        AND remind_interval IS NULL
        AND ${DUE_TIME_SQL} <= datetime(?, '+' || remind_before || ' minutes')
