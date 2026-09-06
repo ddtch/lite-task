@@ -467,6 +467,93 @@ audio {
   transform: scale(.97);
 }
 
+/* ── Kanban: narrow layout ──
+ * Both boards are in the DOM and the viewport picks one, so there is no
+ * first-paint flash from measuring the width in JS. Three columns stop being
+ * readable well before a phone: each card loses more width to padding than it
+ * keeps for the title.
+ */
+.t-kan-mobile {
+  display: none;
+}
+
+.t-kan-picker {
+  font-family: 'VT323', monospace;
+  font-size: 1.15rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.t-kan-card-m {
+  background: var(--bg1);
+  border: 1px solid var(--b0);
+  padding: 13px 14px;
+}
+
+.t-kan-card-m-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 11px;
+  padding-top: 10px;
+  border-top: 1px solid var(--b0);
+}
+
+.t-kan-status {
+  font-family: 'VT323', monospace;
+  font-size: 1.05rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  width: auto;
+  /* 44px keeps the control at the minimum comfortable tap target. */
+  min-height: 44px;
+  padding: 6px 10px;
+  background: var(--bg2);
+  border-color: var(--b1);
+}
+
+@media (max-width: 768px) {
+  .t-kan-desktop {
+    display: none;
+  }
+  .t-kan-mobile {
+    display: block;
+  }
+
+  /* The stat row is three cards wide on every screen; at this size the giant
+     numerals are what breaks it, not the columns. */
+  .t-stat {
+    padding: 9px 6px;
+  }
+  .t-stat-num {
+    font-size: 1.9rem;
+  }
+  .t-stat-label {
+    font-size: .7rem;
+    letter-spacing: .12em;
+  }
+
+  .t-row {
+    padding: 12px 14px;
+    gap: .6rem;
+  }
+  .t-row::before {
+    content: none;
+  }
+
+  /* Sits under the stats rather than beside them, so let it use the width. */
+  .t-view-toggle {
+    width: 100%;
+  }
+  .t-view-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
 /* ── View toggle ── */
 .t-view-toggle {
   background: var(--bg1);

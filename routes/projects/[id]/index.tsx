@@ -14,7 +14,7 @@ export const handler = define.handlers({
     }
     const tasks = await listTasks(id);
     const viewParam = ctx.url.searchParams.get("view");
-    const view = viewParam === "list" ? "list" : "board";
+    const view: "list" | "board" = viewParam === "list" ? "list" : "board";
     const hasViewParam = viewParam === "list" || viewParam === "board";
     return page({ project, tasks, view, hasViewParam });
   },
@@ -53,8 +53,8 @@ export default define.page<typeof handler>(function ProjectPage({ data }) {
       </div>
 
       {/* Header */}
-      <div class="flex items-start justify-between mb-8 gap-4">
-        <div>
+      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-8 gap-4">
+        <div class="min-w-0">
           <h1 class="t-h1">{project.name}</h1>
           {project.description && (
             <p class="mt-1" style="font-size:.85rem; color: var(--green-mute); line-height:1.5;">
@@ -65,7 +65,7 @@ export default define.page<typeof handler>(function ProjectPage({ data }) {
         <div class="flex items-center gap-2 shrink-0">
           <a
             href={`/projects/${project.id}/tasks/new`}
-            class="t-btn t-btn-primary"
+            class="t-btn t-btn-primary flex-1 sm:flex-none justify-center"
           >
             <span>+</span> NEW_TASK
           </a>
@@ -79,18 +79,20 @@ export default define.page<typeof handler>(function ProjectPage({ data }) {
       </div>
 
       {/* Stats + view toggle */}
-      <div class="flex items-center gap-4 mb-8">
-        <div class="grid grid-cols-3 gap-3 flex-1">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-8">
+        <div class="grid grid-cols-3 gap-2 sm:gap-3 flex-1">
           <StatCard label="TODO" count={todo.length} color="muted" />
           <StatCard label="ACTIVE" count={inProgress.length} color="cyan" />
           <StatCard label="DONE" count={done.length} color="green" />
         </div>
 
-        <ViewToggle
-          projectId={project.id}
-          currentView={view}
-          hasViewParam={hasViewParam}
-        />
+        <div class="self-stretch sm:self-auto">
+          <ViewToggle
+            projectId={project.id}
+            currentView={view}
+            hasViewParam={hasViewParam}
+          />
+        </div>
       </div>
 
       {/* Empty state */}

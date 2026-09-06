@@ -578,10 +578,19 @@ Run the reminder scheduler:
 deno task calls:scheduler
 ```
 
+Check the phone path without waiting for a reminder to come due:
+
+```bash
+deno task calls:test              # calls REMINDER_TO_NUMBER
+deno task calls:test +15551234567 # or any number
+```
+
 > **Outbound calls and the gated API.** Placing a call goes through the same
 > Voice Agent Builder API that is disabled for teams outside the beta, so the
 > scheduler logs xAI's 403 verbatim and marks the reminder failed if your team
-> is not enabled yet. `XAI_OUTBOUND_PATH` overrides the endpoint path
+> is not enabled yet. `deno task calls:test` reports the same 403 in one
+> second, which is the quickest way to tell an account problem from a
+> configuration one. `XAI_OUTBOUND_PATH` overrides the endpoint path
 > (default `/v1/realtime/calls`) if xAI publishes a different one.
 
 ---
@@ -794,6 +803,7 @@ task-light/
 | `deno task compile-mcp`      | Compile MCP HTTP client to a standalone binary       |
 | `deno task calls:setup`      | Report xAI account, phone numbers and agent routing |
 | `deno task calls:tools`      | Print prompt + tools to paste into the Builder      |
+| `deno task calls:test`       | Place one real outbound call now, to test the path  |
 | `deno task calls:scheduler`  | Run reminder scheduler for outbound calls            |
 | `deno task events:scheduler` | Run event notification scheduler (Telegram + calls)  |
 

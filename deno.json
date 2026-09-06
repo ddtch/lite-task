@@ -14,6 +14,7 @@
     "bot": "deno run -A --env-file=.env bot/main.ts",
     "calls:setup": "deno run -A --env-file=.env calls/setup.ts",
     "calls:tools": "deno run -A --env-file=.env calls/manifest.ts",
+    "calls:test": "deno run -A --env-file=.env calls/test-call.ts",
     "calls:scheduler": "deno run -A --env-file=.env calls/scheduler.ts",
     "events:scheduler": "deno run -A --env-file=.env calls/event-scheduler.ts"
   },

@@ -18,6 +18,7 @@ deno task preview    # build + start
 deno task bot              # Telegram bot (needs .env)
 deno task mcp              # MCP server, direct-DB mode (stdio)
 deno task mcp:http         # MCP server, HTTP-client mode (talks to LITE_TASK_URL)
+deno task calls:test       # place one outbound call now (diagnoses the phone path)
 deno task calls:scheduler  # reminder scheduler (outbound xAI calls)
 deno task events:scheduler # calendar event notifications (Telegram + calls)
 ```
