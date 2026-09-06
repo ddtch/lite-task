@@ -15,7 +15,7 @@ Designed to also act as an **MCP server** so Claude (or Claude Desktop) can read
 - **Image lightbox** — click any image attachment to view it full-screen with prev/next navigation
 - **Clickable links** — URLs in task descriptions are automatically rendered as links
 - **Calendar** — interactive calendar (FullCalendar) with events, notes, and reminders; month/week/day/year views; per-day event panel with inline create/edit/delete; stats bar
-- **Event notifications** — Telegram message 10 min before timed events; optional phone call (Retell AI) 5 min before
+- **Event notifications** — Telegram message 10 min before timed events; optional phone call (xAI voice agent) 5 min before
 - **SQLite or Turso** — local SQLite by default; switch to Turso cloud database via env vars
 - **REST API** — clean JSON API for programmatic access
 - **MCP server** — two modes: direct DB (local) or HTTP client (remote/Docker)
@@ -28,8 +28,8 @@ Designed to also act as an **MCP server** so Claude (or Claude Desktop) can read
 Requires [Deno 2.2+](https://docs.deno.com/runtime/getting_started/installation/).
 
 ```bash
-git clone https://github.com/your-org/lite-task
-cd lite-task/task-light
+git clone https://github.com/ddtch/lite-task
+cd lite-task
 
 deno task dev
 # → http://localhost:8011
@@ -90,24 +90,35 @@ deno serve -A --port=3000 --host=0.0.0.0 _fresh/server.js
 
 ---
 
-## Docker (recommended for self-hosting)
+## Deploying to a VPS
 
-### Option A — Docker Compose (easiest)
+Every push to `main` publishes a multi-arch image to
+`ghcr.io/ddtch/lite-task` (linux/amd64 and linux/arm64), so a server never
+builds anything: `deno task build` runs Vite, Tailwind and esbuild and will
+exhaust a 1 GB VPS. Tagged releases publish `vX.Y.Z` and `X.Y` alongside
+`latest`.
+
+### 1. Put two files on the server
 
 ```bash
-git clone https://github.com/your-org/lite-task
-cd lite-task/task-light
+mkdir -p ~/lite-task && cd ~/lite-task
 
-# Copy and fill in env vars
-cp .env.example .env
-
-docker compose up -d
-# → http://localhost:8011
+curl -O https://raw.githubusercontent.com/ddtch/lite-task/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/ddtch/lite-task/main/.env.example
 ```
 
-All three services (`lite-task`, `bot`, and `event-scheduler`) read from `.env` automatically via Docker's `env_file` directive. If `TURSO_DB_URL` and `TURSO_API_KEY` are present the app uses Turso; otherwise it uses local SQLite.
+Fill in `.env`. At minimum set `VOICE_API_TOKEN` (`openssl rand -hex 32`) and
+`APP_BASE_URL`; the Telegram, xAI and Turso blocks are all optional.
 
-**Persistent data** is stored under `./data/` on the host:
+### 2. Start it
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Four containers come up — the web app, the Telegram bot, and the two
+schedulers — all reading the same `.env` and sharing `./data/`:
 
 ```
 ./data/
@@ -116,36 +127,63 @@ All three services (`lite-task`, `bot`, and `event-scheduler`) read from `.env` 
   uploads/            ← uploaded images, audio, and video files
 ```
 
-Docker creates the `data/` directory on first run. SQLite files are created automatically — nothing to pre-create.
+The directory and the SQLite files are created on first run.
 
-To change the port:
+### 3. Put a reverse proxy in front
 
-```bash
-PORT=3000 docker compose up -d
-```
+**The app has no login of its own.** The web port is published on
+`127.0.0.1:8011` for exactly that reason: authentication and TLS belong to a
+proxy on the host. Ready-made configs are in [`deploy/`](deploy) —
+[Caddy](deploy/Caddyfile.example), [nginx](deploy/nginx.conf.example). Both do
+the same two things:
 
-### Option B — Docker directly
+- password-protect the UI, the JSON API and `/mcp` with basic auth;
+- let `/api/voice/*` and `/mcp` through without it, because the voice agent
+  reaches those directly and cannot log in. They are guarded by
+  `VOICE_API_TOKEN` instead, which the app accepts as `Authorization: Bearer`,
+  `X-Lite-Task-Token`, or a `?token=` query parameter — prefer a header, since a
+  query parameter lands in access logs. Leave the variable unset and those
+  routes are open to anyone who finds the domain; the app logs a warning at
+  startup when that is the case.
 
-```bash
-# Build image
-docker build -t lite-task .
+### Giving the agent its tools
 
-# Run with persistent data
-docker run -d \
-  --name lite-task \
-  -p 8011:8011 \
-  -v "$(pwd)/data:/app/data" \
-  --env-file .env \
-  --restart unless-stopped \
-  lite-task
-```
+Two ways, both printed by `deno task calls:tools`:
+
+- **As an MCP server (recommended).** In the Voice Agent Builder choose
+  *Add custom MCP server*, point it at `https://your-domain/mcp` and add the
+  header `Authorization: Bearer $VOICE_API_TOKEN`, marked Secret. That is one
+  entry for all sixteen tools, and anything added to `mcp/toolkit.ts` later
+  shows up without touching the agent. xAI supports Streamable HTTP, which is
+  what `/mcp` speaks.
+- **As HTTP tools.** Nine voice-shaped tools declared one by one against
+  `https://your-domain/api/voice/tool`, with the same bearer header. They take
+  project and task *names* instead of ids, which suits speech; the MCP tools are
+  id-based, so over MCP the agent lists first and acts second.
+
+Once the domain resolves, set `APP_BASE_URL=https://your-domain` and run
+`deno task calls:tools` to get tool URLs with the token already embedded.
 
 ### Updating
 
 ```bash
-docker compose down
-git pull
-docker compose up -d --build
+docker compose pull && docker compose up -d
+```
+
+Pin a release instead of tracking `main` by setting `LITE_TASK_TAG=v1.2.3` in
+`.env`; rolling back is then editing that line and re-running the same command.
+
+### Building the image yourself
+
+For local development, or to run a patched build on a machine with ~2 GB of
+free memory:
+
+```bash
+git clone https://github.com/ddtch/lite-task
+cd lite-task
+cp .env.example .env
+
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 ```
 
 ---
@@ -356,14 +394,14 @@ npm install -g lite-task-mcp
 Homebrew requires a tap repo named `homebrew-lite-task`. After each release, update the `sha256` values in the formula using `checksums.txt` from the GitHub Release.
 
 ```bash
-brew tap your-org/lite-task
+brew tap ddtch/lite-task
 brew install lite-task-mcp
 ```
 
 ### Shell script (universal)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/your-org/lite-task/main/task-light/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/ddtch/lite-task/main/install.sh | sh
 ```
 
 ---
@@ -465,9 +503,11 @@ In groups, the bot only responds when @mentioned or when replying to its own mes
 
 ---
 
-## Voice Calling (Retell AI)
+## Voice Calling (xAI)
 
-lite-task integrates with [Retell AI](https://www.retellai.com/) for voice-based task management. You can call the agent by phone or from the browser, and the agent can call you back with reminders.
+lite-task uses the [xAI Voice Agent](https://docs.x.ai/developers/model-capabilities/audio/voice)
+for voice-based task management: you call the agent's number, and it can call
+you back with reminders.
 
 **What you can do by voice:**
 
@@ -476,52 +516,60 @@ lite-task integrates with [Retell AI](https://www.retellai.com/) for voice-based
 - "Mark the deploy task as done"
 - "Remind me about the deadline tomorrow at 3pm"
 
+### How the pieces are split
+
+The agent itself lives in the **Voice Agent Builder**
+(console.x.ai → Voice → Agents), not in this repo, because the `/v1/agents` and
+`/v1/tools` APIs answer `403 "agents endpoint is not enabled for this team"` —
+so the prompt and the tools cannot be pushed onto the agent over the API.
+This repo stays the source of truth for both and prints them for pasting.
+
+What the app drives over the API: outbound calls, phone-number configuration
+(`/v2/phone-numbers`), call control (`refer`, `hangup`), ephemeral client
+secrets, and the tool endpoint every tool call lands on.
+
 ### Setup
 
-#### 1. Create a Retell AI account
+#### 1. Create the agent
 
-Sign up at [retellai.com](https://www.retellai.com/) and purchase a phone number.
+Sign up at [console.x.ai](https://console.x.ai), create a voice agent in
+**Voice → Agents**, and attach a phone number to it. Each account includes one.
 
 #### 2. Configure environment variables
 
-Add to `.env`:
-
 ```env
-RETELL_API_KEY=<your Retell API key>
+XAI_API_KEY=<your xAI API key>
+XAI_AGENT_ID=<agent_... from the Builder>
 APP_BASE_URL=<public URL for webhooks, e.g. https://your-domain.com or ngrok URL>
 ```
 
-#### 3. Create the voice agent
+Check what the account exposes and how each number is routed:
 
 ```bash
 deno task calls:setup
 ```
 
-This creates a Retell LLM + Agent with task management tools. Copy the output into `.env`:
-
-```env
-RETELL_AGENT_ID=<from setup output>
-RETELL_LLM_ID=<from setup output>
-```
-
-#### 4. Bind to phone number
-
-In the [Retell Dashboard](https://dashboard.retellai.com), assign the agent to your phone number for both inbound and outbound calls. Or via API:
+#### 3. Load the prompt and tools into the agent
 
 ```bash
-curl -X PATCH "https://api.retellai.com/update-phone-number/+1XXXXXXXXXX" \
-  -H "Authorization: Bearer $RETELL_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"inbound_agent_id": "<RETELL_AGENT_ID>", "outbound_agent_id": "<RETELL_AGENT_ID>"}'
+deno task calls:tools
 ```
 
-#### 5. Configure reminders (optional)
+Paste the printed prompt into the agent, set its timezone to the printed value,
+and add each tool with the printed schema, pointing every one at
+`$APP_BASE_URL/api/voice/tool`. Re-run this whenever `APP_BASE_URL` changes —
+the tool URLs embed it.
+
+Optionally point the agent's webhook at `$APP_BASE_URL/api/voice/webhook` and put
+the signing secret in `XAI_WEBHOOK_SECRET` so call events are logged and verified.
+
+#### 4. Configure reminders (optional)
 
 For outbound reminder calls, add:
 
 ```env
-RETELL_FROM_NUMBER=+1XXXXXXXXXX    # your Retell phone number
 REMINDER_TO_NUMBER=+1YYYYYYYYYY    # your personal number
+XAI_FROM_NUMBER=+1XXXXXXXXXX       # only if the agent has more than one number
 ```
 
 Run the reminder scheduler:
@@ -530,17 +578,11 @@ Run the reminder scheduler:
 deno task calls:scheduler
 ```
 
-### Updating webhook URLs
-
-When your public URL changes (e.g. new ngrok session), update `APP_BASE_URL` in `.env` and run:
-
-```bash
-deno task calls:update-url
-```
-
-### Web calls
-
-Open `/calls` in the browser to make voice calls directly from the UI via WebRTC — no phone number needed.
+> **Outbound calls and the gated API.** Placing a call goes through the same
+> Voice Agent Builder API that is disabled for teams outside the beta, so the
+> scheduler logs xAI's 403 verbatim and marks the reminder failed if your team
+> is not enabled yet. `XAI_OUTBOUND_PATH` overrides the endpoint path
+> (default `/v1/realtime/calls`) if xAI publishes a different one.
 
 ---
 
@@ -559,11 +601,10 @@ Needs `TELEGRAM_BOT_TOKEN` and `BOT_HOST_ID` in `.env` (same as the bot).
 
 #### 2. Phone call notifications (optional)
 
-Needs Retell AI configured (see Voice Calling above) plus:
+Needs the xAI voice agent configured (see Voice Calling above) plus:
 
 ```env
-RETELL_AGENT_ID=<your agent ID>
-RETELL_FROM_NUMBER=+1XXXXXXXXXX
+XAI_AGENT_ID=<your agent ID>
 REMINDER_TO_NUMBER=+1YYYYYYYYYY
 ```
 
@@ -634,9 +675,8 @@ GET    /api/uploads/:filename → serve uploaded file
 ### Voice
 
 ```
-POST   /api/voice/tool       → Retell function-calling dispatcher (called by Retell AI)
-POST   /api/voice/web-call   → create web call { } → { access_token, call_id }
-POST   /api/voice/webhook    → Retell event webhook (call_started, call_ended, call_analyzed)
+POST   /api/voice/tool       → function-calling dispatcher (called by the xAI agent)
+POST   /api/voice/webhook    → xAI event webhook (realtime.call.incoming, call lifecycle)
 ```
 
 ### Reminders
@@ -662,10 +702,10 @@ task-light/
 │   ├── media.ts           # Telegram file download helpers
 │   └── store.ts           # SQLite store for group/channel message history (data/bot-messages.db)
 ├── calls/
-│   ├── retell.ts          # Retell AI API client (fetch-based)
-│   ├── tools.ts           # Voice agent tool definitions for Retell LLM
-│   ├── setup.ts           # One-time setup: creates Retell LLM + Agent
-│   ├── update-url.ts      # Update webhook URLs after ngrok restart
+│   ├── xai.ts             # xAI voice API client (fetch-based)
+│   ├── tools.ts           # Voice agent tool definitions
+│   ├── setup.ts           # Reports account, numbers and agent routing
+│   ├── manifest.ts        # Prints prompt + tools to paste into the Builder
 │   ├── scheduler.ts       # Reminder scheduler — triggers outbound calls
 │   └── event-scheduler.ts # Event notification scheduler (Telegram + phone calls)
 ├── db/
@@ -678,7 +718,7 @@ task-light/
 │   ├── _app.tsx           # Global layout
 │   ├── index.tsx          # → redirect to /projects
 │   ├── calendar.tsx       # Calendar page (FullCalendar, events/notes/reminders)
-│   ├── calls.tsx          # Voice agent page (web call, reminders, call history)
+│   ├── calls.tsx          # Voice agent page (reminders, call history)
 │   ├── projects/
 │   │   ├── index.tsx      # Project list
 │   │   └── [id]/
@@ -695,9 +735,8 @@ task-light/
 │       │   └── [id]/upload.tsx
 │       ├── uploads/
 │       ├── events/         # Calendar event CRUD
-│       ├── voice/          # Retell AI webhooks
+│       ├── voice/          # xAI voice agent endpoints
 │       │   ├── tool.ts     # Function-calling dispatcher
-│       │   ├── web-call.ts # Create web call (returns access token)
 │       │   └── webhook.ts  # Call lifecycle events
 │       └── reminders/      # Reminder CRUD
 ├── islands/               # Client-side Preact components (hydrated in browser)
@@ -707,7 +746,6 @@ task-light/
 │   ├── AttachmentUploader.tsx # Drag-drop file uploader (image / audio / video)
 │   ├── Calendar.tsx            # Interactive calendar (FullCalendar)
 │   ├── VoiceRecorder.tsx      # In-browser voice memo recorder
-│   └── WebCall.tsx            # WebRTC voice call with live transcript
 ├── components/
 │   └── Badge.tsx
 ├── data/                  # Runtime data (gitignored) — DB files + uploads
@@ -736,7 +774,7 @@ task-light/
 | MCP           | `@modelcontextprotocol/sdk`                                  |
 | Telegram bot  | grammY                                                       |
 | AI agent      | Anthropic SDK / OpenAI SDK                                   |
-| Voice calling | Retell AI + `retell-client-js-sdk` (WebRTC)                  |
+| Voice calling | xAI Voice Agent (Grok voice, SIP telephony)                 |
 
 
 ---
@@ -754,8 +792,8 @@ task-light/
 | `deno task mcp`              | MCP server — direct SQLite access                    |
 | `deno task mcp:http`         | MCP server — HTTP client mode                        |
 | `deno task compile-mcp`      | Compile MCP HTTP client to a standalone binary       |
-| `deno task calls:setup`      | Create Retell AI voice agent (one-time setup)        |
-| `deno task calls:update-url` | Update Retell webhook URLs after ngrok restart       |
+| `deno task calls:setup`      | Report xAI account, phone numbers and agent routing |
+| `deno task calls:tools`      | Print prompt + tools to paste into the Builder      |
 | `deno task calls:scheduler`  | Run reminder scheduler for outbound calls            |
 | `deno task events:scheduler` | Run event notification scheduler (Telegram + calls)  |
 

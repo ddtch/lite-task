@@ -1,0 +1,16 @@
+# Override that builds the image from this checkout instead of pulling it.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+#
+# `deno task build` runs Vite, Tailwind's oxide binary and esbuild, so give the
+# machine ~2 GB of free memory. On a small VPS, pull the published image instead.
+
+services:
+  lite-task:
+    build: .
+  bot:
+    build: .
+  event-scheduler:
+    build: .
+  reminder-scheduler:
+    build: .

@@ -51,11 +51,17 @@ async function handleMcp(req: Request): Promise<Response> {
   server.setRequestHandler(CallToolRequestSchema, async (mcpReq) => {
     const { name, arguments: args } = mcpReq.params;
     const a = (args ?? {}) as Record<string, unknown>;
+    // Logged because this is the only trace a voice call leaves: when an agent
+    // claims it created something that is not there, this line says whether the
+    // tool was ever called and with what.
+    console.log(`[mcp] ${name} ${JSON.stringify(a)}`);
     try {
       return await handleToolCall(name, a);
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[mcp] ${name} failed: ${msg}`);
       return {
-        content: [{ type: "text", text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
+        content: [{ type: "text", text: `Error: ${msg}` }],
         isError: true,
       };
     }

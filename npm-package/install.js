@@ -6,7 +6,7 @@ const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
 
-const REPO = "your-org/lite-task";
+const REPO = "ddtch/lite-task";
 const VERSION = require("./package.json").version;
 const BIN_DIR = path.join(__dirname, "bin");
 
@@ -60,6 +60,6 @@ async function main() {
 
 main().catch((err) => {
   console.error(`lite-task-mcp: install failed — ${err.message}`);
-  console.error("You can install manually: https://github.com/your-org/lite-task/releases");
+  console.error("You can install manually: https://github.com/ddtch/lite-task/releases");
   process.exit(1);
 });

@@ -9,10 +9,10 @@
  * Usage: deno task events:scheduler
  *
  * Requires: TELEGRAM_BOT_TOKEN, BOT_HOST_ID
- * Optional: RETELL_API_KEY, RETELL_AGENT_ID, RETELL_FROM_NUMBER, REMINDER_TO_NUMBER (for calls)
+ * Optional: XAI_API_KEY, XAI_AGENT_ID, XAI_FROM_NUMBER, REMINDER_TO_NUMBER (for calls)
  */
 
-import { createPhoneCall } from "./retell.ts";
+import { placeOutboundCall } from "./xai.ts";
 import { buildCallContext } from "./context.ts";
 import {
   listDueEventsCall,
@@ -25,14 +25,20 @@ import {
 
 const TELEGRAM_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
 const BOT_HOST_ID = Deno.env.get("BOT_HOST_ID");
-const RETELL_AGENT_ID = Deno.env.get("RETELL_AGENT_ID");
-const RETELL_FROM_NUMBER = Deno.env.get("RETELL_FROM_NUMBER");
+const XAI_AGENT_ID = Deno.env.get("XAI_AGENT_ID");
+const XAI_FROM_NUMBER = Deno.env.get("XAI_FROM_NUMBER");
+const XAI_API_KEY = Deno.env.get("XAI_API_KEY");
 const REMINDER_TO_NUMBER = Deno.env.get("REMINDER_TO_NUMBER");
 const CHECK_INTERVAL_MS = 60_000;
 
 if (!TELEGRAM_BOT_TOKEN || !BOT_HOST_ID) {
   console.error("TELEGRAM_BOT_TOKEN and BOT_HOST_ID are required.");
   Deno.exit(1);
+}
+
+/** Outbound calls need the xAI agent and a destination number. */
+function callsEnabled(): boolean {
+  return Boolean(XAI_API_KEY && XAI_AGENT_ID && REMINDER_TO_NUMBER);
 }
 
 async function sendTelegramMessage(text: string): Promise<void> {
@@ -71,7 +77,7 @@ async function checkTelegramNotifications() {
 }
 
 async function checkCallNotifications() {
-  if (!RETELL_AGENT_ID || !RETELL_FROM_NUMBER || !REMINDER_TO_NUMBER) return;
+  if (!callsEnabled()) return;
 
   const due = await listDueEventsCall();
   if (due.length === 0) return;
@@ -80,11 +86,11 @@ async function checkCallNotifications() {
 
   for (const event of due) {
     try {
-      const call = await createPhoneCall({
-        fromNumber: RETELL_FROM_NUMBER,
-        toNumber: REMINDER_TO_NUMBER,
-        agentId: RETELL_AGENT_ID,
-        dynamicVariables: buildCallContext({
+      const call = await placeOutboundCall({
+        toNumber: REMINDER_TO_NUMBER!,
+        agentId: XAI_AGENT_ID!,
+        fromNumber: XAI_FROM_NUMBER,
+        variables: buildCallContext({
           mode: "event_reminder",
           summary: event.event_time
             ? (event.type === "event"
@@ -129,12 +135,12 @@ async function checkRecurringNotifications() {
       await sendTelegramMessage(msg);
       console.log(`[event-scheduler] Recurring Telegram sent for event ${event.id}: ${event.title}`);
 
-      if (event.notify_call === 1 && RETELL_AGENT_ID && RETELL_FROM_NUMBER && REMINDER_TO_NUMBER) {
-        const call = await createPhoneCall({
-          fromNumber: RETELL_FROM_NUMBER,
-          toNumber: REMINDER_TO_NUMBER,
-          agentId: RETELL_AGENT_ID,
-          dynamicVariables: buildCallContext({
+      if (event.notify_call === 1 && callsEnabled()) {
+        const call = await placeOutboundCall({
+          toNumber: REMINDER_TO_NUMBER!,
+          agentId: XAI_AGENT_ID!,
+          fromNumber: XAI_FROM_NUMBER,
+          variables: buildCallContext({
             mode: "event_reminder",
             summary: `"${event.title}" is coming up on ${event.event_date} at ${event.event_time}`,
             details: `Recurring event: ${event.title}. Date: ${event.event_date}. Time: ${event.event_time ?? "unspecified"}. Interval: ${event.remind_interval ?? "none"}. This is a repeating reminder.`,
@@ -171,8 +177,8 @@ async function check() {
 
 console.log("[event-scheduler] Event notification scheduler started");
 console.log(`[event-scheduler] Checking every ${CHECK_INTERVAL_MS / 1000}s`);
-if (!RETELL_AGENT_ID || !RETELL_FROM_NUMBER || !REMINDER_TO_NUMBER) {
-  console.log("[event-scheduler] Phone calls disabled (missing RETELL_AGENT_ID, RETELL_FROM_NUMBER, or REMINDER_TO_NUMBER)");
+if (!callsEnabled()) {
+  console.log("[event-scheduler] Phone calls disabled (missing XAI_API_KEY, XAI_AGENT_ID, or REMINDER_TO_NUMBER)");
 }
 
 check();

@@ -13,7 +13,7 @@
     "compile-mcp": "deno compile -A --output lite-task-mcp mcp/http-client.ts",
     "bot": "deno run -A --env-file=.env bot/main.ts",
     "calls:setup": "deno run -A --env-file=.env calls/setup.ts",
-    "calls:update-url": "deno run -A --env-file=.env calls/update-url.ts",
+    "calls:tools": "deno run -A --env-file=.env calls/manifest.ts",
     "calls:scheduler": "deno run -A --env-file=.env calls/scheduler.ts",
     "events:scheduler": "deno run -A --env-file=.env calls/event-scheduler.ts"
   },
@@ -48,8 +48,7 @@
     "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@^0.52.0",
     "openai": "npm:openai@^4.96.0",
     "@libsql/client": "npm:@libsql/client@^0.14.0",
-    "@libsql/client/web": "npm:@libsql/client@^0.14.0/web",
-    "retell-client-js-sdk": "npm:retell-client-js-sdk@^2.0.0"
+    "@libsql/client/web": "npm:@libsql/client@^0.14.0/web"
   },
   "compilerOptions": {
     "lib": [

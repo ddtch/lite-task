@@ -1,12 +1,12 @@
 #!/bin/sh
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/your-org/lite-task/main/task-light/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/ddtch/lite-task/main/install.sh | sh
 #   INSTALL_DIR=~/.local/bin sh install.sh
 #   VERSION=0.2.0 sh install.sh
 
 set -e
 
-REPO="your-org/lite-task"
+REPO="ddtch/lite-task"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 VERSION="${VERSION:-}"
 

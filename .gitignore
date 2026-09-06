@@ -28,3 +28,7 @@ bot-messages.db
 task-light.db
 task-light.db-shm
 task-light.db-wal
+# macOS
+.DS_Store
+
+static/.DS_Store

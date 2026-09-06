@@ -5,9 +5,9 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/lite-task"
+    "url": "https://github.com/ddtch/lite-task"
   },
-  "homepage": "https://github.com/your-org/lite-task#readme",
+  "homepage": "https://github.com/ddtch/lite-task#readme",
   "keywords": ["mcp", "task-manager", "claude", "cursor", "ai"],
   "bin": {
     "lite-task-mcp": "run.js"

@@ -1,0 +1,48 @@
+# Example nginx server block for a lite-task deployment.
+#
+# TLS is left to certbot (`certbot --nginx -d tasks.example.com`), which fills
+# in the ssl_* directives itself.
+#
+# Create the password file first:
+#   htpasswd -c /etc/nginx/lite-task.htpasswd you
+
+server {
+    listen 443 ssl;
+    server_name tasks.example.com;
+
+    # Attachments; voice calls themselves upload nothing.
+    client_max_body_size 100M;
+
+    # The voice agent calls these routes directly and cannot log in, so they
+    # skip basic auth and authenticate with VOICE_API_TOKEN instead — set that
+    # in .env, or the routes are open to anyone who finds the domain. /mcp is
+    # here because the agent can consume it as a remote MCP server.
+    location /api/voice/ {
+        proxy_pass http://127.0.0.1:8011;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /mcp {
+        proxy_pass http://127.0.0.1:8011;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Streamable HTTP responses.
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+    }
+
+    # Everything else — the UI and the JSON API — is behind a password.
+    location / {
+        auth_basic "lite-task";
+        auth_basic_user_file /etc/nginx/lite-task.htpasswd;
+
+        proxy_pass http://127.0.0.1:8011;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

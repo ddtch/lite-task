@@ -1,18 +1,29 @@
+# Deployment compose file: pulls a prebuilt image, never builds.
+#
+# On a VPS this file plus .env is all you need:
+#   docker compose pull && docker compose up -d
+#
+# To build from source instead (development, or a patched image):
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+#
+# The web port is published on the loopback interface only — a reverse proxy on
+# the host terminates TLS and adds authentication. See README → Deploying to a VPS.
+
+x-app: &app
+  image: ghcr.io/ddtch/lite-task:${LITE_TASK_TAG:-latest}
+  env_file:
+    - .env
+  volumes:
+    - ./data:/app/data
+  restart: unless-stopped
+
 services:
   lite-task:
-    build: .
+    <<: *app
     ports:
-      - "${PORT:-8011}:8011"
-    env_file:
-      - .env
+      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-8011}:8011"
     environment:
       - PORT=8011
-    volumes:
-      # Single data dir — holds SQLite DB files and uploaded media.
-      # When TURSO_DB_URL + TURSO_API_KEY are set in .env, the DB files
-      # are not used (Turso is remote), but uploads still live here.
-      - ./data:/app/data
-    restart: unless-stopped
     healthcheck:
       test:
         [
@@ -27,43 +38,37 @@ services:
       start_period: 15s
 
   bot:
-    build: .
+    <<: *app
     command: ["deno", "run", "-A", "bot/main.ts"]
-    env_file:
-      - .env
+    # Inherited from the image, but these services serve no HTTP.
+    healthcheck:
+      disable: true
     environment:
       - LITE_TASK_URL=http://lite-task:8011
-    volumes:
-      - ./data:/app/data
     depends_on:
       lite-task:
         condition: service_healthy
-    restart: unless-stopped
 
   event-scheduler:
-    build: .
+    <<: *app
     command: ["deno", "run", "-A", "calls/event-scheduler.ts"]
-    env_file:
-      - .env
+    # Inherited from the image, but these services serve no HTTP.
+    healthcheck:
+      disable: true
     environment:
       - TZ=${TZ:-America/New_York}
-    volumes:
-      - ./data:/app/data
     depends_on:
       lite-task:
         condition: service_healthy
-    restart: unless-stopped
 
   reminder-scheduler:
-    build: .
+    <<: *app
     command: ["deno", "run", "-A", "calls/scheduler.ts"]
-    env_file:
-      - .env
+    # Inherited from the image, but these services serve no HTTP.
+    healthcheck:
+      disable: true
     environment:
       - TZ=${TZ:-America/New_York}
-    volumes:
-      - ./data:/app/data
     depends_on:
       lite-task:
         condition: service_healthy
-    restart: unless-stopped

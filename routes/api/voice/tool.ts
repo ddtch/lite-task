@@ -1,9 +1,11 @@
 /**
- * Retell AI function-calling dispatcher.
+ * Voice agent function-calling dispatcher.
  *
- * Retell POSTs here when the LLM invokes a custom tool during a call.
- * Request body: { name: string, args: Record<string, unknown>, call: object }
- * Response: any JSON/string (capped at 15 000 chars by Retell).
+ * The xAI voice agent POSTs here when it invokes one of the tools declared in
+ * calls/tools.ts. Bodies differ by caller — a Builder HTTP tool sends the
+ * arguments as the body itself with the tool name alongside, while a session
+ * this app drives forwards { name, args } — so the handler accepts either.
+ * Response: { result: string }.
  */
 
 import { define } from "../../../utils.ts";
@@ -58,14 +60,31 @@ function findEventByTitle(events: CalendarEvent[], title: string): CalendarEvent
 
 export const handler = define.handlers({
   async POST(ctx) {
-    let body: { name: string; args: Record<string, unknown>; call?: unknown };
+    let body: Record<string, unknown>;
     try {
       body = await ctx.req.json();
     } catch {
       return Response.json({ result: "Invalid request" }, { status: 400 });
     }
 
-    const { name, args } = body;
+    const name = String(body.name ?? body.tool_name ?? body.function_name ?? "");
+    const rawArgs = body.args ?? body.arguments ?? body.parameters ?? body;
+    // Arguments arrive as an object, or as the JSON string a function call
+    // carries them in.
+    let args: Record<string, unknown>;
+    try {
+      args = typeof rawArgs === "string"
+        ? JSON.parse(rawArgs)
+        : (rawArgs as Record<string, unknown>);
+    } catch {
+      return Response.json({ result: "Invalid tool arguments" }, {
+        status: 400,
+      });
+    }
+
+    if (!name) {
+      return Response.json({ result: "Missing tool name" }, { status: 400 });
+    }
 
     try {
       let result: string;

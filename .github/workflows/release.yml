@@ -21,7 +21,6 @@ jobs:
           deno-version: v2.x
 
       - name: Compile all targets
-        working-directory: task-light
         run: |
           mkdir -p dist
           deno compile -A --target x86_64-unknown-linux-gnu  --output dist/lite-task-mcp-linux-x64        mcp/http-client.ts
@@ -31,17 +30,17 @@ jobs:
           deno compile -A --target x86_64-pc-windows-msvc   --output dist/lite-task-mcp-windows-x64.exe  mcp/http-client.ts
 
       - name: Generate checksums
-        working-directory: task-light/dist
+        working-directory: dist
         run: sha256sum * > checksums.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            task-light/dist/lite-task-mcp-linux-x64
-            task-light/dist/lite-task-mcp-linux-arm64
-            task-light/dist/lite-task-mcp-macos-x64
-            task-light/dist/lite-task-mcp-macos-arm64
-            task-light/dist/lite-task-mcp-windows-x64.exe
-            task-light/dist/checksums.txt
+            dist/lite-task-mcp-linux-x64
+            dist/lite-task-mcp-linux-arm64
+            dist/lite-task-mcp-macos-x64
+            dist/lite-task-mcp-macos-arm64
+            dist/lite-task-mcp-windows-x64.exe
+            dist/checksums.txt
           generate_release_notes: true

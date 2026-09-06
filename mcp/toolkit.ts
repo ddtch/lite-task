@@ -75,7 +75,10 @@ export const TOOLS = [
       properties: {
         id: { type: "number", description: "Project ID" },
         name: { type: "string", description: "New project name" },
-        description: { type: "string", description: "New description (optional)" },
+        description: {
+          type: "string",
+          description: "New description (optional)",
+        },
       },
       required: ["id", "name"],
     },
@@ -165,7 +168,10 @@ export const TOOLS = [
         description: { type: "string" },
         status: { type: "string", enum: ["todo", "in_progress", "done"] },
         priority: { type: "string", enum: ["low", "medium", "high"] },
-        due_date: { type: "string", description: "Due date in YYYY-MM-DD format, or null to clear" },
+        due_date: {
+          type: "string",
+          description: "Due date in YYYY-MM-DD format, or null to clear",
+        },
       },
       required: ["id"],
     },
@@ -247,12 +253,14 @@ export const TOOLS = [
         },
         remind_before: {
           type: "number",
-          description: "Minutes before event to notify (5, 10, 30, 60, 1440, 2880). Default: 10",
+          description:
+            "Minutes before event to notify (5, 10, 30, 60, 1440, 2880). Default: 10",
         },
         remind_interval: {
           type: "string",
           enum: ["hourly", "daily"],
-          description: "Repeat reminder at this interval until the event (optional)",
+          description:
+            "Repeat reminder at this interval until the event (optional)",
         },
       },
       required: ["title", "event_date"],
@@ -279,13 +287,30 @@ export const TOOLS = [
         id: { type: "number", description: "Event ID (required)" },
         title: { type: "string" },
         description: { type: "string" },
-        event_date: { type: "string", description: "New date, YYYY-MM-DD — use this to move the entry to another day" },
+        event_date: {
+          type: "string",
+          description:
+            "New date, YYYY-MM-DD — use this to move the entry to another day",
+        },
         event_time: { type: "string", description: "HH:MM or null to clear" },
         type: { type: "string", enum: ["event", "note", "reminder"] },
-        project_id: { type: "number", description: "Project ID or null to unlink" },
-        notify_call: { type: "boolean", description: "Enable/disable phone call reminder" },
-        remind_before: { type: "number", description: "Minutes before event to notify" },
-        remind_interval: { type: "string", enum: ["hourly", "daily"], description: "Set recurring interval or null to clear" },
+        project_id: {
+          type: "number",
+          description: "Project ID or null to unlink",
+        },
+        notify_call: {
+          type: "boolean",
+          description: "Enable/disable phone call reminder",
+        },
+        remind_before: {
+          type: "number",
+          description: "Minutes before event to notify",
+        },
+        remind_interval: {
+          type: "string",
+          enum: ["hourly", "daily"],
+          description: "Set recurring interval or null to clear",
+        },
       },
       required: ["id"],
     },
@@ -319,8 +344,14 @@ function bytesToBase64(bytes: Uint8Array): string {
 function mimeFromFilename(filename: string): string {
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
   return (
-    { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp" }[ext] ??
-    "image/jpeg"
+    {
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      gif: "image/gif",
+      webp: "image/webp",
+    }[ext] ??
+      "image/jpeg"
   );
 }
 
@@ -328,12 +359,28 @@ function mimeFromFilename(filename: string): string {
 // Tool call handler (direct DB)
 // ---------------------------------------------------------------------------
 
-// deno-lint-ignore no-explicit-any
-export async function handleToolCall(name: string, a: Record<string, unknown>): Promise<any> {
+/**
+ * An MCP tool result. Spelled out here rather than imported from the SDK,
+ * because this module must stay SDK-free — see the note at the top of the file.
+ */
+export type ToolResult = {
+  content: Array<
+    | { type: "text"; text: string }
+    | { type: "image"; data: string; mimeType: string }
+  >;
+  isError?: boolean;
+};
+
+export async function handleToolCall(
+  name: string,
+  a: Record<string, unknown>,
+): Promise<ToolResult> {
   switch (name) {
     case "list_projects": {
       const projects = await listProjects();
-      return { content: [{ type: "text", text: JSON.stringify(projects, null, 2) }] };
+      return {
+        content: [{ type: "text", text: JSON.stringify(projects, null, 2) }],
+      };
     }
 
     case "create_project": {
@@ -371,7 +418,12 @@ export async function handleToolCall(name: string, a: Record<string, unknown>): 
         ? String(a.description).trim()
         : project.description;
       await updateProject(id, name, description);
-      return { content: [{ type: "text", text: JSON.stringify({ id, name, description }, null, 2) }] };
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({ id, name, description }, null, 2),
+        }],
+      };
     }
 
     case "delete_project": {
@@ -387,7 +439,9 @@ export async function handleToolCall(name: string, a: Record<string, unknown>): 
         status: a.status ? String(a.status) : undefined,
         priority: a.priority ? String(a.priority) : undefined,
       });
-      return { content: [{ type: "text", text: JSON.stringify(tasks, null, 2) }] };
+      return {
+        content: [{ type: "text", text: JSON.stringify(tasks, null, 2) }],
+      };
     }
 
     case "create_task": {
@@ -417,7 +471,11 @@ export async function handleToolCall(name: string, a: Record<string, unknown>): 
       return {
         content: [{
           type: "text",
-          text: JSON.stringify({ id, title, priority, status, due_date: dueDate }, null, 2),
+          text: JSON.stringify(
+            { id, title, priority, status, due_date: dueDate },
+            null,
+            2,
+          ),
         }],
       };
     }
@@ -451,7 +509,13 @@ export async function handleToolCall(name: string, a: Record<string, unknown>): 
         ...(a.status && validStatuses.includes(String(a.status))
           ? { status: String(a.status) as "todo" | "in_progress" | "done" }
           : {}),
-        ...(a.due_date !== undefined ? { due_date: a.due_date === null ? null : String(a.due_date).trim() || null } : {}),
+        ...(a.due_date !== undefined
+          ? {
+            due_date: a.due_date === null
+              ? null
+              : String(a.due_date).trim() || null,
+          }
+          : {}),
       });
       return {
         content: [{
@@ -472,7 +536,10 @@ export async function handleToolCall(name: string, a: Record<string, unknown>): 
       const filename = String(a.filename ?? "").trim();
       if (!filename) throw new Error("filename is required");
       // Guard against path traversal
-      if (filename.includes("/") || filename.includes("\\") || filename.includes("..")) {
+      if (
+        filename.includes("/") || filename.includes("\\") ||
+        filename.includes("..")
+      ) {
         throw new Error("Invalid filename");
       }
       const bytes = await Deno.readFile(`data/uploads/${filename}`);
@@ -490,7 +557,9 @@ export async function handleToolCall(name: string, a: Record<string, unknown>): 
         month: a.month ? String(a.month) : undefined,
         projectId: a.project_id ? Number(a.project_id) : undefined,
       });
-      return { content: [{ type: "text", text: JSON.stringify(events, null, 2) }] };
+      return {
+        content: [{ type: "text", text: JSON.stringify(events, null, 2) }],
+      };
     }
 
     case "create_event": {
@@ -508,12 +577,22 @@ export async function handleToolCall(name: string, a: Record<string, unknown>): 
           ? (String(a.type) as "event" | "note" | "reminder")
           : "event",
         project_id: a.project_id ? Number(a.project_id) : null,
-        notify_call: typeof a.notify_call === "boolean" ? a.notify_call : undefined,
+        notify_call: typeof a.notify_call === "boolean"
+          ? a.notify_call
+          : undefined,
         remind_before: a.remind_before ? Number(a.remind_before) : undefined,
-        remind_interval: a.remind_interval ? String(a.remind_interval) : undefined,
+        remind_interval: a.remind_interval
+          ? String(a.remind_interval)
+          : undefined,
       });
+      // Return the stored row, not the request: the caller has to see the
+      // defaults the DB applied — type, notify_call and remind_before above all
+      // — to tell the user what notifications the entry actually got.
       return {
-        content: [{ type: "text", text: JSON.stringify({ id, title, event_date: eventDate }, null, 2) }],
+        content: [{
+          type: "text",
+          text: JSON.stringify(await getEvent(id), null, 2),
+        }],
       };
     }
 
@@ -521,7 +600,9 @@ export async function handleToolCall(name: string, a: Record<string, unknown>): 
       const id = Number(a.id);
       const event = await getEvent(id);
       if (!event) throw new Error(`Event ${id} not found`);
-      return { content: [{ type: "text", text: JSON.stringify(event, null, 2) }] };
+      return {
+        content: [{ type: "text", text: JSON.stringify(event, null, 2) }],
+      };
     }
 
     case "update_event": {
@@ -530,18 +611,41 @@ export async function handleToolCall(name: string, a: Record<string, unknown>): 
       const validTypes = ["event", "note", "reminder"];
       await updateEvent(id, {
         ...(a.title !== undefined ? { title: String(a.title).trim() } : {}),
-        ...(a.description !== undefined ? { description: String(a.description).trim() } : {}),
-        ...(a.event_date !== undefined ? { event_date: String(a.event_date) } : {}),
-        ...(a.event_time !== undefined ? { event_time: a.event_time === null ? null : String(a.event_time) } : {}),
+        ...(a.description !== undefined
+          ? { description: String(a.description).trim() }
+          : {}),
+        ...(a.event_date !== undefined
+          ? { event_date: String(a.event_date) }
+          : {}),
+        ...(a.event_time !== undefined
+          ? { event_time: a.event_time === null ? null : String(a.event_time) }
+          : {}),
         ...(a.type && validTypes.includes(String(a.type))
           ? { type: String(a.type) as "event" | "note" | "reminder" }
           : {}),
-        ...(a.project_id !== undefined ? { project_id: a.project_id === null ? null : Number(a.project_id) } : {}),
-        ...(a.notify_call !== undefined ? { notify_call: a.notify_call ? 1 : 0 } : {}),
-        ...(a.remind_before !== undefined ? { remind_before: Number(a.remind_before) } : {}),
-        ...(a.remind_interval !== undefined ? { remind_interval: a.remind_interval === null ? null : String(a.remind_interval) } : {}),
+        ...(a.project_id !== undefined
+          ? { project_id: a.project_id === null ? null : Number(a.project_id) }
+          : {}),
+        ...(a.notify_call !== undefined
+          ? { notify_call: a.notify_call ? 1 : 0 }
+          : {}),
+        ...(a.remind_before !== undefined
+          ? { remind_before: Number(a.remind_before) }
+          : {}),
+        ...(a.remind_interval !== undefined
+          ? {
+            remind_interval: a.remind_interval === null
+              ? null
+              : String(a.remind_interval),
+          }
+          : {}),
       });
-      return { content: [{ type: "text", text: JSON.stringify(await getEvent(id), null, 2) }] };
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(await getEvent(id), null, 2),
+        }],
+      };
     }
 
     case "delete_event": {

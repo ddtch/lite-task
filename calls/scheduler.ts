@@ -3,10 +3,11 @@
  *
  * Usage: deno task calls:scheduler
  *
- * Requires: RETELL_API_KEY, RETELL_AGENT_ID, RETELL_FROM_NUMBER
+ * Requires: XAI_API_KEY, XAI_AGENT_ID
+ * Optional: XAI_FROM_NUMBER (when the agent has more than one number)
  */
 
-import { createPhoneCall } from "./retell.ts";
+import { placeOutboundCall } from "./xai.ts";
 import { buildCallContext } from "./context.ts";
 import {
   getProject,
@@ -15,13 +16,13 @@ import {
   updateReminder,
 } from "../db/queries.ts";
 
-const RETELL_AGENT_ID = Deno.env.get("RETELL_AGENT_ID");
-const RETELL_FROM_NUMBER = Deno.env.get("RETELL_FROM_NUMBER");
+const XAI_AGENT_ID = Deno.env.get("XAI_AGENT_ID");
+const XAI_FROM_NUMBER = Deno.env.get("XAI_FROM_NUMBER");
 const CHECK_INTERVAL_MS = 60_000;
 
-if (!RETELL_AGENT_ID || !RETELL_FROM_NUMBER) {
+if (!Deno.env.get("XAI_API_KEY") || !XAI_AGENT_ID) {
   console.error(
-    "RETELL_AGENT_ID and RETELL_FROM_NUMBER are required for the scheduler.",
+    "XAI_API_KEY and XAI_AGENT_ID are required for the scheduler.",
   );
   Deno.exit(1);
 }
@@ -50,11 +51,11 @@ async function checkReminders() {
         ];
         const reminderContext = reminderContextParts.join(". ");
 
-        const call = await createPhoneCall({
-          fromNumber: RETELL_FROM_NUMBER!,
+        const call = await placeOutboundCall({
           toNumber: reminder.phone_number,
-          agentId: RETELL_AGENT_ID!,
-          dynamicVariables: buildCallContext({
+          agentId: XAI_AGENT_ID!,
+          fromNumber: XAI_FROM_NUMBER,
+          variables: buildCallContext({
             mode: "reminder",
             summary: reminder.message,
             details: reminderContext,

@@ -6,7 +6,6 @@ import {
   type CallLog,
   type Reminder,
 } from "../db/queries.ts";
-import WebCall from "../islands/WebCall.tsx";
 
 export const handler = define.handlers({
   async GET() {
@@ -44,17 +43,6 @@ export default define.page<typeof handler>(function CallsPage({ data }) {
           MANAGE TASKS BY VOICE
         </p>
       </div>
-
-      {/* Web Call */}
-      <section class="mb-10">
-        <h2
-          class="t-h2 mb-4"
-          style="font-size:1.1rem;"
-        >
-          WEB_CALL
-        </h2>
-        <WebCall />
-      </section>
 
       {/* Reminders */}
       <section class="mb-10">

@@ -9,9 +9,14 @@ _fresh/
 task-light.db
 data/
 
-# Dev artifacts
-node_modules/.cache
+# Dev artifacts — the image runs `deno install` in the builder stage, so the
+# host's node_modules never needs to travel with the build context.
+node_modules/
 .playwright-mcp/
+
+# Not needed in the image
+.github/
+deploy/
 
 # Docs / meta
 TODO.md

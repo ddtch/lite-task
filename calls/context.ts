@@ -1,10 +1,11 @@
 /**
- * Per-call dynamic context for the Retell LLM prompt.
+ * Per-call context for the voice agent.
  *
- * The Retell general_prompt and begin_message are set once at LLM creation and
- * stay static. Everything that varies per call — today's date, and above all the
- * reason the agent is calling — is passed as retell_llm_dynamic_variables and
- * referenced from the prompt as {{current_date}}, {{call_opening}}, etc.
+ * The prompt (calls/prompt.ts) is static. Everything that varies per call —
+ * today's date, and above all the reason the agent is calling — is passed as
+ * context variables and referenced from the prompt as {{current_date}},
+ * {{call_opening}}, etc. `renderPrompt()` substitutes the same map when the
+ * prompt has to be handed to the model already rendered.
  *
  * buildCallContext() is the single place the spoken opening line is composed, so
  * every outbound call states its purpose in its very first sentence.
@@ -13,8 +14,8 @@
 import { AGENT_TIMEZONE } from "./prompt.ts";
 
 export function buildDateContext(): Record<string, string> {
-  // Same constant the prompt's {{current_time_<IANA>}} anchor and the agent's
-  // own timezone setting are built from, so all three agree.
+  // Same constant the prompt and the agent's own timezone setting in the
+  // Builder are built from, so all three agree.
   const tz = AGENT_TIMEZONE;
   const now = new Date();
 
@@ -52,7 +53,7 @@ export interface CallReason {
 }
 
 /**
- * Full dynamic-variable set for an outbound call, including the composed
+ * Full context-variable set for an outbound call, including the composed
  * {{call_opening}} the agent speaks first.
  */
 export function buildCallContext(reason: CallReason): Record<string, string> {
@@ -63,7 +64,6 @@ export function buildCallContext(reason: CallReason): Record<string, string> {
     call_opening:
       `Hi! It's your lite-task assistant — quick reminder: ${summary}.`,
     call_reason: summary,
-    // Kept under the original names so existing prompt versions still resolve.
     reminder_message: summary,
     reminder_context: reason.details,
     ...reason.extra,

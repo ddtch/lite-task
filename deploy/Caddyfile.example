@@ -1,0 +1,35 @@
+# Example Caddy site for a lite-task deployment.
+#
+# Copy the block into your existing Caddyfile, replace the domain and the
+# password hash, then `caddy reload`. Caddy obtains and renews the certificate
+# on its own, so nothing about TLS lives in this repo.
+#
+# Generate the hash with:
+#   caddy hash-password
+#
+# On Caddy older than 2.8 the directive is spelled `basicauth`, not `basic_auth`.
+
+tasks.example.com {
+	# The voice agent calls these routes directly and cannot log in, so they skip
+	# basic auth and authenticate with VOICE_API_TOKEN instead — set that in
+	# .env, or the routes are open to anyone who finds the domain. /mcp is here
+	# because the agent can consume it as a remote MCP server.
+	@agent path /api/voice/* /mcp /mcp/*
+	handle @agent {
+		reverse_proxy 127.0.0.1:8011
+	}
+
+	# Everything else — the UI and the JSON API — is behind a password.
+	handle {
+		basic_auth {
+			you $2a$14$REPLACE_WITH_THE_OUTPUT_OF_caddy_hash-password
+		}
+		reverse_proxy 127.0.0.1:8011
+	}
+
+	# Voice calls upload nothing, but attachments do; raise if you attach large
+	# media to tasks.
+	request_body {
+		max_size 100MB
+	}
+}
